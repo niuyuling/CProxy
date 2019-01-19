@@ -1,37 +1,3 @@
-#include <arpa/inet.h>
-#include <errno.h>
-#include <libgen.h>
-#include <netdb.h>
-#include <resolv.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <netinet/in.h>
-
-#include<sys/types.h>
-#include<sys/stat.h>
-#include<fcntl.h>
-#include <errno.h>
-
-#include "iniparser.h"
-#define LOG(fmt...)  do { fprintf(stderr,"%s %s ",__DATE__,__TIME__); fprintf(stderr, ##fmt); } while(0)
-#define BUF_SIZE 8192
-#define MAX_HEADER_SIZE 8192
-
-char remote_host[128];
-int remote_port;
-int local_port;
-int server_sock;
-int client_sock;
-int remote_sock;
-char *header_buffer;
-
-int HTTPS = 0;
-
 #include "cproxy.h"
 
 ssize_t readLine(int fd, void *buffer, size_t n)
@@ -264,11 +230,12 @@ int create_connection()
 }
 
 // 处理客户端的连接
-void handle_client(int client_sock, struct sockaddr_in client_addr)
+void handle_client(int client_sock, struct sockaddr_in client_addr, conf *m)
 {
+    int HTTPS = 0;
     read_header(client_sock, header_buffer);
     extract_host(header_buffer);
-    replacement_http_head(header_buffer, remote_host, &remote_port, &HTTPS);
+    replacement_http_head(header_buffer, remote_host, &remote_port, &HTTPS, m);
 
     printf("%s\n", remote_host);
     printf("%d\n", remote_port);
@@ -290,7 +257,16 @@ void handle_client(int client_sock, struct sockaddr_in client_addr)
                 write(remote_sock, buffer, n);
             }
         }
-
+        if (HTTPS == 1) {
+			forward_header(remote_sock); //普通的http请求先转发header
+            forward_data(client_sock, remote_sock);
+		} else {
+			char buffer[BUF_SIZE];
+            int n;
+            while ((n = read(client_sock, buffer, BUF_SIZE)) > 0) {
+                write(remote_sock, buffer, n);
+            }
+		}
         exit(0);
     }
     if (fork() == 0) {          // 创建子进程用于转发从远端socket接口过来的数据到客户端
@@ -306,18 +282,9 @@ void handle_client(int client_sock, struct sockaddr_in client_addr)
 }
 
 // 守护
-int init_daemon(int nochdir, int noclose)
+int init_daemon(int nochdir, int noclose, conf * p)
 {
-    char *inifile = "conf/cproxy.ini";
-    dictionary *ini = iniparser_load(inifile);
-    const char *PID_FILE = iniparser_getstring(ini, "server:PID_FILE", NULL);
-    FILE *fp = fopen(PID_FILE, "w");
-    if (NULL == fp) {
-        printf("Pid File Can Not Open To Write\n");
-        errno = 0;
-        mkdir("log", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-        perror("mkdir");
-    }
+    FILE *fp = fopen(p->server_pid_file, "w");
     int pid;
 
     if ((pid = fork()) < 0) {
@@ -360,8 +327,27 @@ int init_daemon(int nochdir, int noclose)
         open("/dev/null", O_RDWR);
     }
     fclose(fp);
-    iniparser_freedict(ini);
     return 0;
+}
+
+// 判断pid文件存放目录
+void log_dir(conf *p)
+{
+    char *d = strchr(p->server_pid_file, '/');
+    if (d != NULL) {
+        int l_d = p->len_server_pid_file - strlen(d);
+        char pid_dir[l_d];
+        strncpy(pid_dir, p->server_pid_file, l_d - 1);
+        printf("%d\n", l_d);
+        printf("%s\n", pid_dir);
+
+        if (access(pid_dir, F_OK) != 0) {
+            printf("Pid File Can Not Open To Write\n");
+            errno = 0;
+            mkdir("log", S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+            perror("mkdir");
+        }
+    }
 }
 
 void sigchld_handler(int signal)
@@ -373,8 +359,21 @@ void sigchld_handler(int signal)
 int _main(int argc, char *argv[])
 {
     char *inifile = "conf/cproxy.ini";
-    dictionary *ini = iniparser_load(inifile);
-    int PORT = iniparser_getint(ini, "server:PORT", 0);
+    conf *m = (struct CONF *)malloc(sizeof(struct CONF));
+    read_conf(inifile, m);
+    int PORT = m->server_port;
+/*
+    printf("%d\n", m->server_port);
+    printf("%s\n", m->server_pid_file);
+    printf("%s\n", m->http_ip);
+    printf("%d\n", m->http_port);
+    printf("%s\n", m->http_del);
+    printf("%s\n", m->http_first);
+    printf("%s\n", m->https_ip);
+    printf("%d\n", m->https_port);
+    printf("%s\n", m->https_del);
+    printf("%s\n", m->https_first);
+*/
 
     int opt;
     char optstrs[] = ":l:d";
@@ -384,7 +383,7 @@ int _main(int argc, char *argv[])
             PORT = atoi(optarg);
             break;
         case 'd':{
-                init_daemon(1, 1);
+                init_daemon(1, 1, m);
             }
             break;
         default:
@@ -425,13 +424,13 @@ int _main(int argc, char *argv[])
 
         if (fork() == 0) {      // 创建子进程处理客户端连接请求
             close(server_sock);
-            handle_client(client_socket, clnt_addr);
+            handle_client(client_socket, clnt_addr, m);
             exit(0);
         }
         close(client_socket);
     }
     free(header_buffer);        // 收回内存
-    iniparser_freedict(ini);
+    free_conf(m);
 }
 
 int main(int argc, char *argv[])

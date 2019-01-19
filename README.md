@@ -5,9 +5,8 @@
 
 # Build
     git clone https://github.com/niuyuling/cproxy.git
-	cd cproxy
     git clone https://github.com/ndevilla/iniparser.git
     cd iniparser
     make
-    cd ..
+    cd ../cproxy
     make clean; make

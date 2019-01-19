@@ -1,17 +1,4 @@
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include "iniparser.h"
-
-const char *http_ip;
-int http_port;
-const char *http_del;
-const char *http_first;
-
-const char *https_ip;
-int https_port;
-const char *https_del;
-const char *https_first;
+#include "cproxy_request.h"
 
 void *memmem(const void *haystack, size_t haystacklen, const void *needle,
              size_t needlelen);
@@ -87,6 +74,7 @@ void del_chr(char *s, char ch)
     *t = '\0';                  //置目标串结束符。
 }
 
+// strncpy()封装
 char *strncpy_(char *dest, const char *src, size_t n)
 {
     int size = sizeof(char) * (n + 1);
@@ -129,37 +117,24 @@ char *delete_header(char *header_buffer, const char *ch, int str)
 }
 
 int replacement_http_head(char *header_buffer, char *remote_host,
-                          int *remote_port, int *HTTPS)
+                          int *remote_port, int *HTTPS, conf *p)
 {
-    char *file = "conf/cproxy.ini";
-    dictionary *ini = iniparser_load(file);
-
-    // 读取配置
-    http_ip = iniparser_getstring(ini, "http:http_ip", NULL);
-    http_port = iniparser_getint(ini, "http:http_port", 0);
-    http_del = iniparser_getstring(ini, "http:http_del", NULL);
-    http_first = iniparser_getstring(ini, "http:http_first", NULL);
-    https_ip = iniparser_getstring(ini, "https:https_ip", NULL);
-    https_port = iniparser_getint(ini, "https:https_port", 0);
-    https_del = iniparser_getstring(ini, "https:https_del", NULL);
-    https_first = iniparser_getstring(ini, "https:https_first", NULL);
-
-    char *http_firsts = (char *)malloc(strlen(http_first) + 1);
-    strcpy(http_firsts, http_first); // 拷贝http_first
-    char *https_firsts = (char *)malloc(strlen(https_first) + 1);
-    strcpy(https_firsts, https_first); // 拷贝https_first
+    char *http_firsts = (char *)malloc(strlen(p->http_first) + 1);
+    strcpy(http_firsts, p->http_first); // 拷贝http_first
+    char *https_firsts = (char *)malloc(strlen(p->https_first) + 1);
+    strcpy(https_firsts, p->https_first); // 拷贝https_first
 
     char *header_buffers = (char *)malloc(strlen(header_buffer) + 1); // 拷贝原字符串
     strcpy(header_buffers, header_buffer);
 
-    char *new_http_del = malloc(strlen(http_del) + 1); // 拷贝http_del
-    strcpy(new_http_del, http_del);
+    char *new_http_del = malloc(strlen(p->http_del) + 1); // 拷贝http_del
+    strcpy(new_http_del, p->http_del);
 
-    char *new_https_del = malloc(strlen(https_del) + 1); // // 拷贝https_del
-    strcpy(new_https_del, https_del);
+    char *new_https_del = malloc(strlen(p->https_del) + 1); // // 拷贝https_del
+    strcpy(new_https_del, p->https_del);
 
-    char *p = strstr(header_buffers, "CONNECT"); // 判断是否是http 隧道请求
-    if (p == NULL) {
+    char *con = strstr(header_buffers, "CONNECT"); // 判断是否是http 隧道请求
+    if (con == NULL) {
         char *result = NULL;
         result = strtok(new_http_del, ",");
         while (result != NULL) {
@@ -224,8 +199,8 @@ int replacement_http_head(char *header_buffer, char *remote_host,
         len = strlen(new_header_buffer);
         new_header_buffer = replace(new_header_buffer, &len, "\\n", 2, "\n", 1);
 
-        stpcpy(remote_host, http_ip);
-        *remote_port = http_port;
+        stpcpy(remote_host, p->http_ip);
+        *remote_port = p->http_port;
         memset(header_buffer, 0, strlen(header_buffer));
         strcpy(header_buffer, new_header_buffer);
         free(HTTP_HEAD);
@@ -243,10 +218,8 @@ int replacement_http_head(char *header_buffer, char *remote_host,
         }
         //delete_header(header_buffers, "Host", '\n'); // 删除HOST,改变原字符串
         //delete_header(header_buffers, "x-online-host", '\n'); // 删除HOST,改变原字符串
-        char *new_header_buffer = (char *)
-            malloc(strlen(splice_head(header_buffers, "\n", https_firsts)) + 1);
-        strcpy(new_header_buffer,
-               splice_head(header_buffers, "\n", https_firsts));
+        char *new_header_buffer = (char *)malloc(strlen(splice_head(header_buffers, "\n", https_firsts)) + 1);
+        strcpy(new_header_buffer, splice_head(header_buffers, "\n", https_firsts));
 
         char *p2 = strstr(header_buffers, "\n");
         p2 = p2 + 1;
@@ -300,10 +273,10 @@ int replacement_http_head(char *header_buffer, char *remote_host,
         len = strlen(new_header_buffer);
         new_header_buffer = replace(new_header_buffer, &len, "\\n", 2, "\n", 1);
 
-        //stpcpy(remote_host, https_ip);
-        //*remote_port = 80;
-        //memset(header_buffer, 0, strlen(header_buffer));
-        //strcpy(header_buffer, new_header_buffer);
+        //stpcpy(remote_host, p->https_ip);
+        //*remote_port = p->https_port;
+        memset(header_buffer, 0, strlen(header_buffer));
+        strcpy(header_buffer, new_header_buffer);
 
         free(HTTPS_HEAD);
         free(M);
@@ -317,6 +290,5 @@ int replacement_http_head(char *header_buffer, char *remote_host,
     free(new_http_del);
     free(new_https_del);
     free(header_buffers);
-    iniparser_freedict(ini);
     return *HTTPS;
 }
