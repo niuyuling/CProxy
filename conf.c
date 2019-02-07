@@ -1,6 +1,6 @@
 #include "conf.h"
 
-void read_conf(char *file, conf * p)
+void read_conf(char *file, conf *p)
 {
     dictionary *ini = iniparser_load(file);
 
@@ -101,7 +101,7 @@ err:
     iniparser_freedict(ini);
 }
 
-void free_conf(conf * p)
+void free_conf(conf *p)
 {
     free(p->server_pid_file);
     free(p->http_ip);
@@ -111,3 +111,4 @@ void free_conf(conf * p)
     free(p->https_del);
     free(p->https_first);
 }
+

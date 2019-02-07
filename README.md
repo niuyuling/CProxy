@@ -1,6 +1,7 @@
 # cproxy
-    基于mproxy修改后的Android本地代理.  
-    可以修改非Http tunnel消息头(request).
+    Android本地二级代理.  
+    可以修改HTTP协议消息头(request).  
+    可以修改HTTP协议CONNECT方法消息头.  
 
 
 # Build
