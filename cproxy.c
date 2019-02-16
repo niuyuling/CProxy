@@ -50,8 +50,6 @@ void handle_client(int client_sock, struct sockaddr_in client_addr, conf *config
     replacement_http_head(header_buffer, remote_host, &remote_port, &SIGN, configure);
 
     //printf("%s", header_buffer);
-    //printf("%s\n", remote_host);
-    //printf("%d\n", remote_port);
 
     if ((remote_sock = create_connection(configure, SIGN)) < 0) {
         return;
@@ -103,7 +101,7 @@ void forward_data(int source_sock, int destination_sock)
     shutdown(source_sock, SHUT_RDWR);
 }
 
-int create_connection(conf * configure, int SIGN)
+int create_connection(conf *configure, int SIGN)
 {
     struct sockaddr_in server_addr;
     struct hostent *server;
@@ -173,7 +171,7 @@ int create_server_socket(int port)
 }
 
 // 守护
-int init_daemon(int nochdir, int noclose, conf * configure)
+int init_daemon(int nochdir, int noclose, conf *configure)
 {
     FILE *fp = fopen(configure->server_pid_file, "w");
     int pid;
@@ -225,20 +223,18 @@ void server_loop(conf * configure)
     socklen_t addrlen = sizeof(client_addr);
 
     while (1) {
-        client_sock =
-            accept(server_sock, (struct sockaddr *)&client_addr, &addrlen);
+        client_sock = accept(server_sock, (struct sockaddr *)&client_addr, &addrlen);
 
         if (fork() == 0) {      // 创建子进程处理客户端连接请求
+            close(server_sock);
             handle_client(client_sock, client_addr, configure);
-            close(client_sock);
             exit(0);
         }
+        close(client_sock);
     }
-
-    close(server_sock);
 }
 
-void start_server(conf * configure)
+void start_server(conf *configure)
 {
     signal(SIGCHLD, sigchld_handler); // 防止子进程变成僵尸进程
 

@@ -1,7 +1,5 @@
 #include "cproxy_request.h"
 
-void *memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen);
-
 // 字符串替换
 char *replace(char *replace_memory, int *replace_memory_len, const char *src, const int src_len, const char *dest, const int dest_len)
 {
@@ -95,15 +93,15 @@ uint8_t request_type(char *req)
     else if (strncmp(req, "CONNECT", 7) == 0)
         return HTTP_CONNECT;
     else if (strncmp(req, "HEAD", 4) == 0 ||
-             strncmp(req, "PUT", 3) == 0 ||
-             strncmp(req, "OPTIONS", 7) == 0 ||
-             strncmp(req, "MOVE", 4) == 0 ||
-             strncmp(req, "COPY", 4) == 0 ||
-             strncmp(req, "TRACE", 5) == 0 ||
-             strncmp(req, "DELETE", 6) == 0 ||
-             strncmp(req, "LINK", 4) == 0 ||
-             strncmp(req, "UNLINK", 6) == 0 ||
-             strncmp(req, "PATCH", 5) == 0 || strncmp(req, "WRAPPED", 7) == 0)
+        strncmp(req, "PUT", 3) == 0 ||
+        strncmp(req, "OPTIONS", 7) == 0 ||
+        strncmp(req, "MOVE", 4) == 0 ||
+        strncmp(req, "COPY", 4) == 0 ||
+        strncmp(req, "TRACE", 5) == 0 ||
+        strncmp(req, "DELETE", 6) == 0 ||
+        strncmp(req, "LINK", 4) == 0 ||
+        strncmp(req, "UNLINK", 6) == 0 ||
+        strncmp(req, "PATCH", 5) == 0 || strncmp(req, "WRAPPED", 7) == 0)
         return HTTP_OTHERS;
     else
         return OTHER;
@@ -193,6 +191,17 @@ void rewrite_header()
     }
 }
 
+// 判断数字有几位
+int numbin(int n)
+{
+    int sum = 0;
+    while (n) {
+        sum++;
+        n /= 10;
+    }
+    return sum;
+}
+
 // 删除字符串header_buffer中第一位到character处,并拼接string,character必须存在.(string替换第一个字符到character处)
 char *splice_head(char *header_buffer, const char *character, char *string)
 {
@@ -218,7 +227,7 @@ char *delete_header(char *header_buffer, const char *character, int string)
     return strcat(header_buffer, p2 + 1);
 }
 
-int replacement_http_head(char *header_buffer, char *remote_host, int *remote_port, int *SIGN, conf * p)
+int replacement_http_head(char *header_buffer, char *remote_host, int *remote_port, int *SIGN, conf *p)
 {
     char *http_firsts = (char *)malloc(strlen(p->http_first) + 1);
     strcpy(http_firsts, p->http_first); // 拷贝http_first
@@ -231,7 +240,7 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
     char *new_http_del = malloc(strlen(p->http_del) + 1); // 拷贝http_del
     strcpy(new_http_del, p->http_del);
 
-    char *new_https_del = malloc(strlen(p->https_del) + 1); // // 拷贝https_del
+    char *new_https_del = malloc(strlen(p->https_del) + 1); // 拷贝https_del
     strcpy(new_https_del, p->https_del);
 
     if (*SIGN == HTTP) {
@@ -273,7 +282,6 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         //printf("%s", V);
         
         char *new_header_buffer = (char *)malloc(strlen(splice_head(header_buffer_backup, "\n", http_firsts)) + 1);
-        //char *new_header_buffer = (char *)malloc(BUF_SIZES);
         strcpy(new_header_buffer, splice_head(header_buffer_backup, "\n", http_firsts));
 
         int len = strlen(new_header_buffer);
@@ -286,6 +294,19 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         new_header_buffer = replace(new_header_buffer, &len, "[U]", 3, U, len_u);
         new_header_buffer = replace(new_header_buffer, &len, "[V]", 3, V, len_v);
         new_header_buffer = replace(new_header_buffer, &len, "[host]", 6, remote_host, len_remote_host);
+        
+        char port_copy[numbin(*remote_port) + 1];
+        sprintf(port_copy, "%d", *remote_port);
+        int len_remote_port = strlen(port_copy);
+        new_header_buffer = replace(new_header_buffer, &len, "[port]", 6, port_copy, len_remote_port);
+        
+        new_header_buffer = replace(new_header_buffer, &len, "\\r", 2, "\r", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\n", 2, "\n", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\b", 2, "\b", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\v", 2, "\v", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\f", 2, "\f", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\a", 2, "\a", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\t", 2, "\t", 1);
         new_header_buffer = replace(new_header_buffer, &len, "\\r", 2, "\r", 1);
         new_header_buffer = replace(new_header_buffer, &len, "\\n", 2, "\n", 1);
 
@@ -332,15 +353,12 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
 
         // V
         p4 = p4 + 1;
-        //del_chr(p4, '\r');
-        //del_chr(p4, '\n');
         l = strlen(p4);
         char *V = (char *)malloc(l);
         strncpy_(V, p4, 8);
         //printf("%s", V);
         
         char *new_header_buffer = (char *) malloc(strlen(splice_head(header_buffer_backup, "\n", https_firsts)) + 1);
-        //char *new_header_buffer = (char *) malloc(BUF_SIZES);
         strcpy(new_header_buffer, splice_head(header_buffer_backup, "\n", https_firsts));
 
         int len = strlen(new_header_buffer);
@@ -353,11 +371,18 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         new_header_buffer = replace(new_header_buffer, &len, "[V]", 3, V, len_v);
         new_header_buffer = replace(new_header_buffer, &len, "[host]", 6, remote_host, len_remote_host);
 
-        char port_num[9];
-        sprintf(port_num, "%d", *remote_port);
-        int len_remote_port = strlen(port_num);
-        new_header_buffer = replace(new_header_buffer, &len, "[port]", 6, port_num, len_remote_port);
+        char port_copy[numbin(*remote_port) + 1];
+        sprintf(port_copy, "%d", *remote_port);
+        int len_remote_port = strlen(port_copy);
+        new_header_buffer = replace(new_header_buffer, &len, "[port]", 6, port_copy, len_remote_port);
 
+        new_header_buffer = replace(new_header_buffer, &len, "\\r", 2, "\r", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\n", 2, "\n", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\b", 2, "\b", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\v", 2, "\v", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\f", 2, "\f", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\a", 2, "\a", 1);
+        new_header_buffer = replace(new_header_buffer, &len, "\\t", 2, "\t", 1);
         new_header_buffer = replace(new_header_buffer, &len, "\\r", 2, "\r", 1);
         new_header_buffer = replace(new_header_buffer, &len, "\\n", 2, "\n", 1);
 

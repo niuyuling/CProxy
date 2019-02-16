@@ -1,0 +1,8 @@
+模块: [server], [http], [https]
+
+[http]、[https]模块关键字: [M], [U], [V], [host], [port], \r, \n, \v, \f, \b, \t, \a. 如果原本请求头含有关键字也会被替换.
+[M] 原请求方法
+[U] 原请求url
+[V] 原请求协议版本
+[host] 原请求host
+[port] 原请求端口

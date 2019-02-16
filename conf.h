@@ -3,6 +3,8 @@
 
 #include "iniparser.h"
 #include "cproxy.h"
+void read_conf(char *file, conf *p);
+void free_conf(conf *p);
 
 #endif
 

@@ -66,17 +66,23 @@ typedef struct CONF {
 #define HTTP_OTHERS 3
 #define HTTP_CONNECT 4
 
-void read_conf(char *file, conf *p);
-void free_conf(conf * p);
-
-void server_loop(conf * configure);
+char *read_data(int client_sock, char *data, int *data_len);
+void servertoclient(int remote_sock, int client_sock, char *complete_data, int *len_complete_data);
+void clienttoserver(int remote_sock, char *complete_data, int *len_complete_data);
 void handle_client(int client_sock, struct sockaddr_in client_addr, conf *configure);
-void forward_data(int source_sock, int destination_sock);
 int send_data(int socket, char *buffer, int len);
 int receive_data(int socket, char *buffer, int len);
-
-int create_connection(conf * configure, int SIGN);
+void forward_data(int source_sock, int destination_sock);
+int create_connection(conf *configure, int SIGN);
+int create_server_socket(int port);
+int init_daemon(int nochdir, int noclose, conf * configure);
+void sigchld_handler(int signal);
+void server_loop(conf *configure);
+void start_server(conf * configure);
 int _main(int argc, char *argv[]);
+
+void read_conf(char *file, conf *p);
+void free_conf(conf *p);
 int extract_host(char *header);
 int replacement_http_head(char *header_buffer, char *remote_host, int *remote_port, int *SIGN, conf *p);
 uint8_t request_type(char *req);
