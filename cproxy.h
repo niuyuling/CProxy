@@ -14,9 +14,9 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
-#include<sys/types.h>
-#include<sys/stat.h>
-#include<fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define BUF_SIZE 8192
 #define BUF_SIZES 1024
@@ -58,6 +58,16 @@ typedef struct CONF {
     int len_server_pid_file;    // length
     int len_http_ip, len_http_del, len_http_first;
     int len_https_ip, len_https_del, len_https_first;
+    
+    char *http_strrep, *http_regrep, *https_strrep, *https_regrep;
+    char *http_strrep_aim, *http_strrep_obj;
+    char *https_strrep_aim, *https_strrep_obj;
+    
+    char *http_regrep_aim, *http_regrep_obj;
+    char *https_regrep_aim, *https_regrep_obj;
+    
+    int len_http_strrep, len_http_regrep;
+    int len_https_strrep, len_https_regrep;
 } conf;
 
 // 请求类型
@@ -75,12 +85,11 @@ int receive_data(int socket, char *buffer, int len);
 void forward_data(int source_sock, int destination_sock);
 int create_connection(conf *configure, int SIGN);
 int create_server_socket(int port);
-int init_daemon(int nochdir, int noclose, conf * configure);
+int init_daemon(int nochdir, int noclose, conf *configure);
 void sigchld_handler(int signal);
 void server_loop(conf *configure);
-void start_server(conf * configure);
+void start_server(conf *configure);
 int _main(int argc, char *argv[]);
-
 void read_conf(char *file, conf *p);
 void free_conf(conf *p);
 int extract_host(char *header);

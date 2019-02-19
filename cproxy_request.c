@@ -57,6 +57,87 @@ char *replace(char *replace_memory, int *replace_memory_len, const char *src, co
     return replace_memory;
 }
 
+/* 正则表达式字符串替换，str为可用free释放的指针 */
+static char *regrep(char *str, int *str_len, const char *src, char *dest, int dest_len)
+{
+    if (!str || !src || !dest)
+        return NULL;
+
+    regmatch_t pm[10];
+    regex_t reg;
+    char child_num[2] = {'\\', '0'}, *p, *real_dest;
+    int match_len, real_dest_len, i;
+
+    p = str;
+    regcomp(&reg, src, REG_NEWLINE|REG_ICASE|REG_EXTENDED);
+    while (regexec(&reg, p, 10, pm, 0) == 0)
+    {
+        real_dest = (char *)malloc(dest_len);
+        if (real_dest == NULL)
+        {
+            regfree(&reg);
+            free(str);
+            return NULL;
+        }
+        memcpy(real_dest, dest, dest_len);
+        real_dest_len = dest_len;
+        //不进行不必要的字符串操作
+        if (pm[1].rm_so >= 0)
+        {
+            /* 替换目标字符串中的子表达式 */
+            for (i = 1; i < 10 && pm[i].rm_so > -1; i++)
+            {
+                child_num[1] = i + 48;
+                real_dest = replace(real_dest, &real_dest_len, child_num, 2, p + pm[i].rm_so, pm[i].rm_eo - pm[i].rm_so);
+                if (real_dest == NULL)
+                {
+                    regfree(&reg);
+                    free(str);
+                    return NULL;
+                }
+            }
+        }
+
+        match_len = pm[0].rm_eo - pm[0].rm_so;
+        p += pm[0].rm_so;
+        //目标字符串不大于匹配字符串则不用分配新内存
+        if (match_len >= real_dest_len)
+        {
+            memcpy(p, real_dest, real_dest_len);
+            if (match_len > real_dest_len)
+                //strcpy(p + real_dest_len, p + match_len);
+                memmove(p + real_dest_len, p + match_len, *str_len - (p + match_len - str));
+            p += real_dest_len;
+            *str_len -= match_len - real_dest_len;
+        }
+        else
+        {
+            int diff;
+            char *before_end, *new_str;
+
+            diff = real_dest_len - match_len;
+            *str_len += diff;
+            new_str = (char *)realloc(str, *str_len + 1);
+            if (new_str == NULL)
+            {
+                free(str);
+                free(real_dest);
+                regfree(&reg);
+                return NULL;
+            }
+            str = new_str;
+            before_end = str + pm[0].rm_so;
+            p = before_end + real_dest_len;
+            memmove(p, p - diff, *str_len - (p - str) + 1);
+            memcpy(before_end, real_dest, real_dest_len);
+        }
+        free(real_dest);
+    }
+
+    regfree(&reg);
+    return str;
+}
+
 // 删除单个字符
 void del_chr(char *s, char ch)
 {
@@ -202,11 +283,14 @@ int numbin(int n)
     return sum;
 }
 
-// 删除字符串header_buffer中第一位到character处,并拼接string,character必须存在.(string替换第一个字符到character处)
+// 删除字符串header_buffer中第一位到character处,并拼接string,character为空返回原字符串.(string替换第一个字符到character处)
 char *splice_head(char *header_buffer, const char *character, char *string)
 {
     int len_first = strlen(string);
     char *p1 = strstr(header_buffer, character);
+    if (p1 == NULL) {
+        return header_buffer;
+    }
     p1 = p1 + 1;
     char new_string[len_first + strlen(p1) + 1];
     strcpy(new_string, string); // 拼接
@@ -230,18 +314,43 @@ char *delete_header(char *header_buffer, const char *character, int string)
 int replacement_http_head(char *header_buffer, char *remote_host, int *remote_port, int *SIGN, conf *p)
 {
     char *http_firsts = (char *)malloc(strlen(p->http_first) + 1);
-    strcpy(http_firsts, p->http_first); // 拷贝http_first
+    if (http_firsts) {
+        strcpy(http_firsts, p->http_first); // 拷贝http_first
+    } else {
+        free(http_firsts);
+        return 0;
+    }
     char *https_firsts = (char *)malloc(strlen(p->https_first) + 1);
-    strcpy(https_firsts, p->https_first); // 拷贝https_first
+    if (https_firsts) {
+        strcpy(https_firsts, p->https_first); // 拷贝https_first
+    } else {
+        free(https_firsts);
+        return 0; 
+    }
 
     char *header_buffer_backup = (char *)malloc(strlen(header_buffer) + 1); // 拷贝原字符串
-    strcpy(header_buffer_backup, header_buffer);
+    if (header_buffer_backup) {
+        strcpy(header_buffer_backup, header_buffer);
+    } else {
+        free(header_buffer_backup);
+        return 0;
+    }
 
     char *new_http_del = malloc(strlen(p->http_del) + 1); // 拷贝http_del
-    strcpy(new_http_del, p->http_del);
+    if (new_http_del) {
+        strcpy(new_http_del, p->http_del);
+    } else {
+        free(new_http_del);
+        return 0;
+    }
 
     char *new_https_del = malloc(strlen(p->https_del) + 1); // 拷贝https_del
-    strcpy(new_https_del, p->https_del);
+    if (new_https_del) {
+        strcpy(new_https_del, p->https_del);
+    } else {
+        free(new_https_del);
+        return 0;
+    }
 
     if (*SIGN == HTTP) {
         char *result = NULL;
@@ -254,23 +363,38 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         char *p2 = strstr(header_buffer_backup, "\n");
         p2 = p2 + 1;
         int len_http_head = strlen(header_buffer_backup) - strlen(p2);
-        char *HTTP_HEAD = (char *)malloc(len_http_head + 1); //http头第一行
-        strncpy_(HTTP_HEAD, header_buffer_backup, len_http_head);
+        char *HTTP_HEAD = (char *)malloc(len_http_head + 1); // http头第一行
+        if (HTTP_HEAD) {
+            strncpy_(HTTP_HEAD, header_buffer_backup, len_http_head);
+        } else {
+            free(HTTP_HEAD);
+            return 0;
+        }
 
         // M
         char *p3 = strstr(HTTP_HEAD, " ");
         int l = strlen(HTTP_HEAD) - strlen(p3);
         char *M = malloc(l + 1);
-        strncpy_(M, HTTP_HEAD, l);
-        //printf("%s", M);
+        if (M) {
+            strncpy_(M, HTTP_HEAD, l);
+            //printf("%s", M);
+        } else {
+            free(M);
+            return 0;
+        }
 
         // U
         p3 = p3 + 1;
         char *p4 = strstr(p3, " ");
         l = strlen(p3) - strlen(p4);
         char *U = (char *)malloc(l + 1);
-        strncpy_(U, p3, l);
-        //printf("%s", U);
+        if (U) {
+            strncpy_(U, p3, l);
+            //printf("%s", U);
+        } else {
+            free(U);
+            return 0;
+        }
 
         // V
         p4 = p4 + 1;
@@ -278,18 +402,28 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         del_chr(p4, '\n');
         l = strlen(p4);
         char *V = (char *)malloc(l);
-        strcpy(V, p4);
-        //printf("%s", V);
+        if (V) {
+            strcpy(V, p4);
+            //printf("%s", V);
+        } else {
+            free(V);
+            return 0;
+        }
         
         char *new_header_buffer = (char *)malloc(strlen(splice_head(header_buffer_backup, "\n", http_firsts)) + 1);
-        strcpy(new_header_buffer, splice_head(header_buffer_backup, "\n", http_firsts));
+        if (new_header_buffer) {
+            strcpy(new_header_buffer, splice_head(header_buffer_backup, "\n", http_firsts));
+        } else {
+            free(new_header_buffer);
+            return 0;
+        }
 
         int len = strlen(new_header_buffer);
         int len_m = strlen(M);
         int len_u = strlen(U);
         int len_v = strlen(V);
         int len_remote_host = strlen(remote_host);
-        
+
         new_header_buffer = replace(new_header_buffer, &len, "[M]", 3, M, len_m);
         new_header_buffer = replace(new_header_buffer, &len, "[U]", 3, U, len_u);
         new_header_buffer = replace(new_header_buffer, &len, "[V]", 3, V, len_v);
@@ -309,6 +443,15 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         new_header_buffer = replace(new_header_buffer, &len, "\\t", 2, "\t", 1);
         new_header_buffer = replace(new_header_buffer, &len, "\\r", 2, "\r", 1);
         new_header_buffer = replace(new_header_buffer, &len, "\\n", 2, "\n", 1);
+        if (p->http_strrep) {
+            int regrep_aim_len = strlen(p->http_strrep_aim);
+            int regrep_obj_len = strlen(p->http_strrep_obj);
+            new_header_buffer = replace(new_header_buffer, &len, p->http_strrep_aim, regrep_aim_len, p->http_strrep_obj, regrep_obj_len);
+        }
+        if (p->http_regrep) {
+            len = strlen(new_header_buffer) + 1;
+            new_header_buffer = regrep(new_header_buffer, &len, p->http_regrep_aim, p->http_regrep_obj, strlen(p->http_regrep_obj));
+        }
 
         //stpcpy(p->http_ip, remote_host);
         //p->http_port = *remote_port;
@@ -333,39 +476,65 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         char *p2 = strstr(header_buffer_backup, "\n");
         p2 = p2 + 1;
         int len_https_head = strlen(header_buffer_backup) - strlen(p2);
-        char *HTTPS_HEAD = (char *)malloc(len_https_head + 1); //https头第一行
-        strncpy_(HTTPS_HEAD, header_buffer_backup, len_https_head);
+        char *HTTPS_HEAD = (char *)malloc(len_https_head + 1); // https头第一行
+        if (HTTPS_HEAD) {
+            strncpy_(HTTPS_HEAD, header_buffer_backup, len_https_head);
+        } else {
+            free(HTTPS_HEAD);
+            return 0;
+        }
 
         // M
         char *p3 = strstr(HTTPS_HEAD, " ");
         int l = strlen(HTTPS_HEAD) - strlen(p3);
         char *M = malloc(l + 1);
-        strncpy_(M, HTTPS_HEAD, l);
-        //printf("%s", M);
+        if (M) {
+            strncpy_(M, HTTPS_HEAD, l);
+            //printf("%s", M);
+        } else {
+            free(M);
+            return 0;
+        }
 
         // U
         p3 = p3 + 1;
         char *p4 = strstr(p3, " ");
         l = strlen(p3) - strlen(p4);
         char *U = (char *)malloc(l + 1);
-        strncpy_(U, p3, l);
-        //printf("%s", U);
+        if (U) {
+            strncpy_(U, p3, l);
+            //printf("%s", U);
+        } else {
+            free(U);
+            return 0;
+        }
 
         // V
         p4 = p4 + 1;
         l = strlen(p4);
         char *V = (char *)malloc(l);
-        strncpy_(V, p4, 8);
-        //printf("%s", V);
+        if (V) {
+            strncpy_(V, p4, 8);
+            //printf("%s", V);
+        } else {
+            free(V);
+            return 0;
+        }
         
         char *new_header_buffer = (char *) malloc(strlen(splice_head(header_buffer_backup, "\n", https_firsts)) + 1);
+        if (new_header_buffer) {
         strcpy(new_header_buffer, splice_head(header_buffer_backup, "\n", https_firsts));
-
+        } else {
+            free(new_header_buffer);
+            return 0;
+        }
+        
         int len = strlen(new_header_buffer);
         int len_m = strlen(M);
         int len_u = strlen(U);
         int len_v = strlen(V);
         int len_remote_host = strlen(remote_host);
+
         new_header_buffer = replace(new_header_buffer, &len, "[M]", 3, M, len_m);
         new_header_buffer = replace(new_header_buffer, &len, "[U]", 3, U, len_u);
         new_header_buffer = replace(new_header_buffer, &len, "[V]", 3, V, len_v);
@@ -385,7 +554,18 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         new_header_buffer = replace(new_header_buffer, &len, "\\t", 2, "\t", 1);
         new_header_buffer = replace(new_header_buffer, &len, "\\r", 2, "\r", 1);
         new_header_buffer = replace(new_header_buffer, &len, "\\n", 2, "\n", 1);
-
+        
+        if (p->https_strrep) {
+            int regrep_aim_len = strlen(p->https_strrep_aim);
+            int regrep_obj_len = strlen(p->https_strrep_obj);
+            new_header_buffer = replace(new_header_buffer, &len, p->https_strrep_aim, regrep_aim_len, p->https_strrep_obj, regrep_obj_len);
+        }
+        if (p->https_regrep) {
+            len = strlen(new_header_buffer) + 1;
+            new_header_buffer = regrep(new_header_buffer, &len, p->https_regrep_aim, p->https_regrep_obj, strlen(p->https_regrep_obj));
+            
+        }
+        
         //stpcpy(p->https_ip, remote_host); // 走真实IP非代理
         //p->https_port = *remote_port;
         memset(header_buffer, 0, strlen(header_buffer));
