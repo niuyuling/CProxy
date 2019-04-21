@@ -63,7 +63,8 @@ void handle_client(int client_sock, struct sockaddr_in client_addr, conf *config
             forward_header(remote_sock); //普通的http请求先转发header
             forward_data(client_sock, remote_sock);
         }
-        exit(0);
+        _exit(0);
+        
     }
 
     if (fork() == 0) {
@@ -72,7 +73,7 @@ void handle_client(int client_sock, struct sockaddr_in client_addr, conf *config
         } else if (SIGN == HTTP_OTHERS || SIGN == HTTP) {
             forward_data(remote_sock, client_sock);
         }
-        exit(0);
+        _exit(0);
     }
 
     close(client_sock);
@@ -104,7 +105,7 @@ void forward_data(int source_sock, int destination_sock)
 int create_connection(conf *configure, int SIGN)
 {
     struct sockaddr_in server_addr;
-    struct hostent *server;
+    struct hostent *server = NULL;
     int sock;
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -133,6 +134,11 @@ int create_connection(conf *configure, int SIGN)
         server_addr.sin_port = htons(configure->http_port);
     }
 
+    struct linger so_linger;
+    so_linger.l_onoff = 1;
+    so_linger.l_linger = 0;
+    setsockopt(sock, SOL_SOCKET, SO_LINGER, &so_linger,sizeof so_linger);
+    
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         return CLIENT_CONNECT_ERROR;
     }
@@ -142,16 +148,22 @@ int create_connection(conf *configure, int SIGN)
 
 int create_server_socket(int port)
 {
-    int server_sock, optval;
+    int server_sock;
+    //int optval;
     struct sockaddr_in server_addr;
 
     if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         return SERVER_SOCKET_ERROR;
     }
-
+/*
     if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
         return SERVER_SETSOCKOPT_ERROR;
     }
+*/
+    struct linger so_linger;
+    so_linger.l_onoff = 1;
+    so_linger.l_linger = 0;
+    setsockopt(server_sock, SOL_SOCKET, SO_LINGER, &so_linger,sizeof so_linger);
 
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
@@ -232,6 +244,7 @@ void server_loop(conf * configure)
         }
         close(client_sock);
     }
+    close(server_sock);
 }
 
 void start_server(conf *configure)

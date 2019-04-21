@@ -1,5 +1,5 @@
-CC = gcc
-CFLAGS = -g -Wall -Werror -I../iniparser/src -L../iniparser
+CC ?= gcc
+CFLAGS += -g -Wall -I../iniparser/src -L../iniparser
 LIBS = -liniparser
 OBJ := cproxy
 

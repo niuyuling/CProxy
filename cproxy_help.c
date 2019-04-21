@@ -19,9 +19,10 @@ char help_information(void)
         0
     };
 
+    
+    //fprintf(stderr, "%s %s\n", author.c, author.b);
+    fprintf(stderr, "%s %s\n", author.c, author.a);
     fprintf(stderr, "%s %s\n", name, subject);
-    fprintf(stderr, "%s %s\n", author.c, author.b);
-    fprintf(stderr, "%s %s\n", author.d, author.a);
     fprintf(stderr, "%s %s\n", name, usage);
 
     int l;

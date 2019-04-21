@@ -429,7 +429,7 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         new_header_buffer = replace(new_header_buffer, &len, "[V]", 3, V, len_v);
         new_header_buffer = replace(new_header_buffer, &len, "[host]", 6, remote_host, len_remote_host);
         
-        char port_copy[numbin(*remote_port) + 1];
+        char port_copy[(numbin(*remote_port) + 1)];
         sprintf(port_copy, "%d", *remote_port);
         int len_remote_port = strlen(port_copy);
         new_header_buffer = replace(new_header_buffer, &len, "[port]", 6, port_copy, len_remote_port);
@@ -540,7 +540,7 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         new_header_buffer = replace(new_header_buffer, &len, "[V]", 3, V, len_v);
         new_header_buffer = replace(new_header_buffer, &len, "[host]", 6, remote_host, len_remote_host);
 
-        char port_copy[numbin(*remote_port) + 1];
+        char port_copy[(numbin(*remote_port) + 1)];
         sprintf(port_copy, "%d", *remote_port);
         int len_remote_port = strlen(port_copy);
         new_header_buffer = replace(new_header_buffer, &len, "[port]", 6, port_copy, len_remote_port);

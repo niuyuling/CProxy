@@ -2,6 +2,11 @@
 
 void read_conf(char *file, conf *p)
 {
+    if(access(file, F_OK)) {
+        printf("%s DOESN'T EXISIT!\n", file);
+        exit(1);
+    }
+    
     dictionary *ini = iniparser_load(file);
 
     // server module

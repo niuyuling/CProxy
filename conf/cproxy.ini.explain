@@ -1,4 +1,7 @@
 模块: [server], [http], [https]
+[server]模块:
+PORT 端口
+PID_FILE pid文件
 
 [http]、[https]模块关键字: [M], [U], [V], [host], [port], \r, \n, \v, \f, \b, \t, \a. 如果原本请求头含有关键字也会被替换.
 [M] 原请求方法
