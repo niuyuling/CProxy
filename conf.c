@@ -18,6 +18,7 @@ void read_conf(char *file, conf *p)
     }
     memset(p->server_pid_file, 0, p->len_server_pid_file);
     memcpy(p->server_pid_file, iniparser_getstring(ini, "server:PID_FILE", NULL), p->len_server_pid_file);
+    //printf("%s\n", p->server_pid_file);
 
     // http ip
     p->len_http_ip = strlen(iniparser_getstring(ini, "http:http_ip", NULL)) + 1;

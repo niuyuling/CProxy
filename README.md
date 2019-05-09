@@ -11,3 +11,16 @@
     make
     cd ../cproxy
     make clean; make
+    
+# Help Information
+    cproxy proxy server
+    Author: aixiao@aixiao.me
+    Usage: [-?hdsc] [-s signal] [-c filename]
+
+    Options:
+        -h            : help information
+        -d            : daemon
+        -s signal     : send signal to a master process: stop
+        -c filename   : set configuration file (default: conf/nginx.conf)
+
+    May  7 2019 18:48:10 Compile、link.

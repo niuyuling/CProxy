@@ -18,6 +18,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <dirent.h>
+
+#define PATH_SIZE 270
 #define BUF_SIZE 8192
 #define BUF_SIZES 1024
 
@@ -85,7 +88,7 @@ int receive_data(int socket, char *buffer, int len);
 void forward_data(int source_sock, int destination_sock);
 int create_connection(conf *configure, int SIGN);
 int create_server_socket(int port);
-int init_daemon(int nochdir, int noclose, conf *configure);
+int init_daemon(int nochdir, int noclose, conf *configure, char *path);
 void sigchld_handler(int signal);
 void server_loop(conf *configure);
 void start_server(conf *configure);

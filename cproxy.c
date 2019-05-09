@@ -1,4 +1,5 @@
 #include "cproxy.h"
+#include "kill.h"
 
 char *read_data(int client_sock, char *data, int *data_len)
 {
@@ -183,9 +184,16 @@ int create_server_socket(int port)
 }
 
 // 守护
-int init_daemon(int nochdir, int noclose, conf *configure)
+int init_daemon(int nochdir, int noclose, conf *configure, char *path)
 {
-    FILE *fp = fopen(configure->server_pid_file, "w");
+    char *p = strcat(path, configure->server_pid_file);
+    FILE *fp = fopen(p, "w");
+    if(fp == NULL) {
+        fclose(fp);
+        printf("%s Open Failed\n", p);
+        exit(1);
+    }
+
     int pid;
 
     if ((pid = fork()) < 0) {
@@ -258,9 +266,34 @@ void start_server(conf *configure)
     server_loop(configure);
 }
 
+int stop(int signal, char *program_name) {
+    if (signal == 1) {
+        struct passwd *pwent = NULL;
+        pwent = getpwnam("root");
+        return kill_all(15,1, &program_name, pwent);
+    }
+
+    return 1;
+}
+
+int get_executable_path(char *processdir, char *processname, int len)
+{
+    char *filename;
+    if (readlink("/proc/self/exe", processdir, len) <= 0) {
+        return -1;
+    }
+    filename = strrchr(processdir, '/');
+    if (filename == NULL)
+        return -1;
+    ++filename;
+    strcpy(processname, filename);
+    *filename = '\0';
+    return (int)(filename - processdir);
+}
+
 int _main(int argc, char *argv[])
 {
-    //初始化全局变量
+    // 初始化全局变量
     header_buffer = (char *)malloc(BUF_SIZE);
     len_header_buffer = strlen(header_buffer);
 
@@ -268,22 +301,37 @@ int _main(int argc, char *argv[])
     len_complete_data = strlen(complete_data);
 
     char *inifile = "conf/cproxy.ini";
+    char path[PATH_SIZE] = { 0 };
+    char executable_filename[PATH_SIZE] = { 0 };
+    (void)get_executable_path(path, executable_filename, sizeof(path));
+    inifile=strcat(path, inifile);
+
     conf *configure = (struct CONF *)malloc(sizeof(struct CONF));
     read_conf(inifile, configure);
 
     local_port = configure->server_port;
 
     int opt;
-    char optstrs[] = ":l:dh";
+    char optstrs[] = ":l:ds:c:h?";
     while (-1 != (opt = getopt(argc, argv, optstrs))) {
         switch (opt) {
         case 'l':
             local_port = atoi(optarg);
             break;
         case 'd':
-            init_daemon(1, 1, configure);
+            (void)get_executable_path(path, executable_filename, sizeof(path));
+            init_daemon(1, 1, configure, path);
             break;
-        case 'h':
+        case 's':
+            if (strcasecmp(optarg, "stop") == 0)
+                stop(1,  executable_filename);
+            exit(0);
+            break;
+        case 'c':
+            inifile=optarg;
+            read_conf(inifile, configure);
+            break;
+        case 'h': case '?':
             help_information();
             exit(0);
             break;
