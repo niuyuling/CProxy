@@ -18,9 +18,9 @@
     Usage: [-?hdsc] [-s signal] [-c filename]
 
     Options:
-        -h            : help information
-        -d            : daemon
-        -s signal     : send signal to a master process: stop
-        -c filename   : set configuration file (default: conf/cproxy.ini)
+        -?,-h       : help information
+        -d          : daemon
+        -s signal   : send signal to a master process: stop
+        -c filename : set configuration file (default: conf/cproxy.ini)
 
     May  7 2019 18:48:10 Compile、link.

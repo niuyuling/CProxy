@@ -490,7 +490,6 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         char *M = malloc(l + 1);
         if (M) {
             strncpy_(M, HTTPS_HEAD, l);
-            //printf("%s", M);
         } else {
             free(M);
             return 0;
@@ -587,3 +586,4 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
     free(header_buffer_backup);
     return 1;
 }
+

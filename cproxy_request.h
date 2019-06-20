@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <regex.h>
 #include "cproxy.h"
+
 void *memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen);
 char *replace(char *replace_memory, int *replace_memory_len, const char *src, const int src_len, const char *dest, const int dest_len);
 void del_chr(char *s, char ch);

@@ -1,5 +1,5 @@
 模块: [server], [http], [https]
-[server]模块:
+[server]模块
 PORT 端口
 PID_FILE pid文件
 
@@ -10,8 +10,9 @@ PID_FILE pid文件
 [host] 原请求host
 [port] 原请求端口
 
-关键字strrep替换字符串指令
+关键字strrep替换字符串指令.
 strrep = "Mi MIX 2->Linux"; 以"->"为分界符,"Mi MIX 2"字符串替换为"Linux"字符串.
 
-关键字regrep正则匹配替换字符串
+关键字regrep正则匹配替换字符串.
 regrep = "Host*.+?->Host: iread.wo.cn:443"; 以"->"为分界符,匹配到的内容"Host*.+?"替换为"Host: iread.wo.cn:443"字符串.
+

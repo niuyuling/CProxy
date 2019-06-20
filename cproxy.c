@@ -328,6 +328,7 @@ int _main(int argc, char *argv[])
             exit(0);
             break;
         case 'c':
+            free_conf(configure);   // 如果指定-c参数就释放上次分配的内存
             inifile=optarg;
             read_conf(inifile, configure);
             break;
@@ -351,3 +352,4 @@ int main(int argc, char *argv[])
 {
     return _main(argc, argv);
 }
+

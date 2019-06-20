@@ -103,3 +103,4 @@ void rewrite_header();
 char help_information(void);
 
 #endif
+

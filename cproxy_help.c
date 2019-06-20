@@ -15,10 +15,10 @@ char help_information(void)
     static const char *s_help[] = {
         "",
         "Options:",
-        "    -h            : help information",
-        "    -d            : daemon",
-        "    -s signal     : send signal to a master process: stop",
-        "    -c filename   : set configuration file (default: conf/cproxy.ini)",
+        "    -?,-h       : help information",
+        "    -d          : daemon",
+        "    -s signal   : send signal to a master process: stop",
+        "    -c filename : set configuration file (default: conf/cproxy.ini)",
         "",
         0
     };
