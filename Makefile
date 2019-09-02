@@ -2,7 +2,7 @@ CROSS_COMPILE ?=
 CC := $(CROSS_COMPILE)gcc
 STRIP := $(CROSS_COMPILE)strip
 CFLAGS += -g -Wall -I../iniparser/src -L../iniparser
-LIBS = -liniparser
+LIBS = -liniparser -static
 OBJ := cproxy
 
 all: cproxy.o conf.o cproxy_request.o cproxy_help.o kill.o

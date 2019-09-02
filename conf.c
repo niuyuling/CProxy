@@ -10,16 +10,21 @@ void read_conf(char *file, conf *p)
     dictionary *ini = iniparser_load(file);
 
     // server module
-    p->server_port = iniparser_getint(ini, "server:PORT", 0);
-    p->len_server_pid_file = strlen(iniparser_getstring(ini, "server:PID_FILE", NULL)) + 1;
+    // uid
+    p->uid = iniparser_getint(ini, "server:uid", 0);
+    //local_port
+    p->server_port = iniparser_getint(ini, "server:local_port", 0);
+    //pid_file
+    p->len_server_pid_file = strlen(iniparser_getstring(ini, "server:pid_file", NULL)) + 1;
     p->server_pid_file = (char *)malloc(p->len_server_pid_file);
     if (p->server_pid_file == NULL) {
         goto err;
     }
     memset(p->server_pid_file, 0, p->len_server_pid_file);
-    memcpy(p->server_pid_file, iniparser_getstring(ini, "server:PID_FILE", NULL), p->len_server_pid_file);
+    memcpy(p->server_pid_file, iniparser_getstring(ini, "server:pid_file", NULL), p->len_server_pid_file);
     //printf("%s\n", p->server_pid_file);
 
+    // http module
     // http ip
     p->len_http_ip = strlen(iniparser_getstring(ini, "http:http_ip", NULL)) + 1;
     p->http_ip = (char *)malloc(p->len_http_ip);
@@ -50,7 +55,7 @@ void read_conf(char *file, conf *p)
     memset(p->http_first, 0, p->len_http_first);
     memcpy(p->http_first, iniparser_getstring(ini, "http:http_first", NULL), p->len_http_first);
 
-
+    // https module
     // https ip
     p->len_https_ip = strlen(iniparser_getstring(ini, "https:https_ip", NULL)) + 1;
     p->https_ip = (char *)malloc(p->len_https_ip);

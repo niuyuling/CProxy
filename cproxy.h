@@ -42,13 +42,14 @@ int remote_sock;
 
 char *header_buffer;
 int len_header_buffer;
-char *complete_data;
-int len_complete_data;
+//char *complete_data;
+//int len_complete_data;
 
 int SIGN;
 
 // 配置文件结构
 typedef struct CONF {
+    int uid;
     int server_port;            // server module
     char *server_pid_file;
 

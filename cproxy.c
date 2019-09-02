@@ -70,7 +70,8 @@ void handle_client(int client_sock, struct sockaddr_in client_addr, conf *config
 
     if (fork() == 0) {
         if (SIGN == HTTP_CONNECT) {
-            servertoclient(remote_sock, client_sock, complete_data, &len_complete_data);
+            //servertoclient(remote_sock, client_sock, complete_data, &len_complete_data);
+            forward_data(remote_sock, client_sock);
         } else if (SIGN == HTTP_OTHERS || SIGN == HTTP) {
             forward_data(remote_sock, client_sock);
         }
@@ -297,8 +298,8 @@ int _main(int argc, char *argv[])
     header_buffer = (char *)malloc(BUF_SIZE);
     len_header_buffer = strlen(header_buffer);
 
-    complete_data = (char *)malloc(BUF_SIZES);
-    len_complete_data = strlen(complete_data);
+    //complete_data = (char *)malloc(BUF_SIZES);
+    //len_complete_data = strlen(complete_data);
 
     char *inifile = "conf/cproxy.ini";
     char path[PATH_SIZE] = { 0 };
@@ -323,8 +324,10 @@ int _main(int argc, char *argv[])
             init_daemon(1, 1, configure, path);
             break;
         case 's':
-            if (strcasecmp(optarg, "stop") == 0)
+            if (strcasecmp(optarg, "stop") == 0) {
+                free(header_buffer);
                 stop(1,  executable_filename);
+            }
             exit(0);
             break;
         case 'c':
@@ -340,10 +343,13 @@ int _main(int argc, char *argv[])
             ;
         }
     }
+    
+    if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1)     // 设置uid
+        exit(1);
 
     start_server(configure);
     free_conf(configure);
-    free(complete_data);
+    //free(complete_data);
     free(header_buffer);
     return 0;
 }

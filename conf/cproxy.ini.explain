@@ -1,18 +1,30 @@
 模块: [server], [http], [https]
-[server]模块
-PORT 端口
-PID_FILE pid文件
-
 [http]、[https]模块关键字: [M], [U], [V], [host], [port], \r, \n, \v, \f, \b, \t, \a. 如果原本请求头含有关键字也会被替换.
+
+[server]模块
+uid 设置UID
+local_port 端口
+pid_file pid文件
+
+[http]模块
 [M] 原请求方法
 [U] 原请求url
 [V] 原请求协议版本
 [host] 原请求host
 [port] 原请求端口
-
 关键字strrep替换字符串指令.
 strrep = "Mi MIX 2->Linux"; 以"->"为分界符,"Mi MIX 2"字符串替换为"Linux"字符串.
+关键字regrep正则匹配替换字符串.
+regrep = "Host*.+?->Host: iread.wo.cn:443"; 以"->"为分界符,匹配到的内容"Host*.+?"替换为"Host: iread.wo.cn:443"字符串.
 
+[https]模块
+[M] 原请求方法
+[U] 原请求url
+[V] 原请求协议版本
+[host] 原请求host
+[port] 原请求端口
+关键字strrep替换字符串指令.
+strrep = "Mi MIX 2->Linux"; 以"->"为分界符,"Mi MIX 2"字符串替换为"Linux"字符串.
 关键字regrep正则匹配替换字符串.
 regrep = "Host*.+?->Host: iread.wo.cn:443"; 以"->"为分界符,匹配到的内容"Host*.+?"替换为"Host: iread.wo.cn:443"字符串.
 
