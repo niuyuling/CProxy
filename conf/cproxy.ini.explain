@@ -1,5 +1,5 @@
 模块: [server], [http], [https]
-[http]、[https]模块关键字: [M], [U], [V], [host], [port], \r, \n, \v, \f, \b, \t, \a. 如果原本请求头含有关键字也会被替换.
+[http]、[https]模块关键字: [M], [U], [V], [H], [host], [port], \r, \n, \v, \f, \b, \t, \a. 如果原本请求头含有关键字也会被替换.
 
 [server]模块
 uid 设置UID
@@ -10,6 +10,7 @@ pid_file pid文件
 [M] 原请求方法
 [U] 原请求url
 [V] 原请求协议版本
+[H] 原[host]:[port]
 [host] 原请求host
 [port] 原请求端口
 关键字strrep替换字符串指令.
@@ -21,6 +22,7 @@ regrep = "Host*.+?->Host: iread.wo.cn:443"; 以"->"为分界符,匹配到的内�
 [M] 原请求方法
 [U] 原请求url
 [V] 原请求协议版本
+[H] 原[host]:[port]
 [host] 原请求host
 [port] 原请求端口
 关键字strrep替换字符串指令.

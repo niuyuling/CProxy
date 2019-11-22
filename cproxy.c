@@ -325,6 +325,7 @@ int _main(int argc, char *argv[])
             break;
         case 's':
             if (strcasecmp(optarg, "stop") == 0) {
+                free_conf(configure);
                 free(header_buffer);
                 stop(1,  executable_filename);
             }

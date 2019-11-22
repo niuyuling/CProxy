@@ -18,6 +18,7 @@ void rewrite_header();
 int numbin(int n);
 char *splice_head(char *header_buffer, const char *character, char *string);
 char *delete_header(char *header_buffer, const char *character, int string);
+char *splice_host_port(char *tmp, char *host, char *port);
 int replacement_http_head(char *header_buffer, char *remote_host, int *remote_port, int *SIGN, conf *p);
 
 #endif

@@ -311,6 +311,14 @@ char *delete_header(char *header_buffer, const char *character, int string)
     return strcat(header_buffer, p2 + 1);
 }
 
+char *splice_host_port(char *tmp, char *host, char *port) {
+    //memset(tmp, 0, strlen(tmp));
+    bzero(tmp, strlen(tmp));
+    strcat(tmp, host);
+    strcat(tmp, ":");
+    return strcat(tmp, port);
+}
+
 int replacement_http_head(char *header_buffer, char *remote_host, int *remote_port, int *SIGN, conf *p)
 {
     char *http_firsts = (char *)malloc(strlen(p->http_first) + 1);
@@ -429,10 +437,15 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         new_header_buffer = replace(new_header_buffer, &len, "[V]", 3, V, len_v);
         new_header_buffer = replace(new_header_buffer, &len, "[host]", 6, remote_host, len_remote_host);
         
-        char port_copy[(numbin(*remote_port) + 1)];
+        char port_copy[(numbin(*remote_port) + 2)];
         sprintf(port_copy, "%d", *remote_port);
         int len_remote_port = strlen(port_copy);
         new_header_buffer = replace(new_header_buffer, &len, "[port]", 6, port_copy, len_remote_port);
+        
+        char H[(len_remote_port + len_remote_host) +1];
+        splice_host_port(H, remote_host, port_copy);
+        int len_h = strlen(H);
+        new_header_buffer = replace(new_header_buffer, &len, "[H]", 3, H, len_h);
         
         new_header_buffer = replace(new_header_buffer, &len, "\\r", 2, "\r", 1);
         new_header_buffer = replace(new_header_buffer, &len, "\\n", 2, "\n", 1);
@@ -539,10 +552,17 @@ int replacement_http_head(char *header_buffer, char *remote_host, int *remote_po
         new_header_buffer = replace(new_header_buffer, &len, "[V]", 3, V, len_v);
         new_header_buffer = replace(new_header_buffer, &len, "[host]", 6, remote_host, len_remote_host);
 
-        char port_copy[(numbin(*remote_port) + 1)];
+        char port_copy[(numbin(*remote_port) + 2)];
         sprintf(port_copy, "%d", *remote_port);
         int len_remote_port = strlen(port_copy);
         new_header_buffer = replace(new_header_buffer, &len, "[port]", 6, port_copy, len_remote_port);
+        
+
+        char H[(len_remote_port + len_remote_host) +1];
+        splice_host_port(H, remote_host, port_copy);
+        int len_h = strlen(H);
+        new_header_buffer = replace(new_header_buffer, &len, "[H]", 3, H, len_h);
+        
 
         new_header_buffer = replace(new_header_buffer, &len, "\\r", 2, "\r", 1);
         new_header_buffer = replace(new_header_buffer, &len, "\\n", 2, "\n", 1);
