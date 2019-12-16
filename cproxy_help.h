@@ -8,4 +8,3 @@
 char help_information(void);
 
 #endif
-

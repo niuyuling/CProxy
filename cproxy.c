@@ -28,27 +28,34 @@ char *read_data(int client_sock, char *data, int *data_len)
     return data;
 }
 
-void servertoclient(int remote_sock, int client_sock, char *complete_data, int *len_complete_data)
+void servertoclient(int remote_sock, int client_sock, char *complete_data,
+                    int *len_complete_data)
 {
-    while ((*len_complete_data = read(remote_sock, complete_data, BUF_SIZE)) > 0) {
+    while ((*len_complete_data =
+            read(remote_sock, complete_data, BUF_SIZE)) > 0) {
         write(client_sock, complete_data, *len_complete_data);
     }
+    return;
 }
 
-void clienttoserver(int remote_sock, char *complete_data, int *len_complete_data)
+void clienttoserver(int remote_sock, char *complete_data,
+                    int *len_complete_data)
 {
     write(remote_sock, complete_data, *len_complete_data);
     complete_data = NULL;
     complete_data = 0;
+    return;
 }
 
 // 处理客户端的连接
-void handle_client(int client_sock, struct sockaddr_in client_addr, conf *configure)
+void handle_client(int client_sock, struct sockaddr_in client_addr,
+                   conf * configure)
 {
     read_data(client_sock, header_buffer, &len_header_buffer); // 第一次读取客户端(浏览器)数据
     SIGN = request_type(header_buffer); // 获取请求消息类型
     extract_host(header_buffer); // 提取真实Host
-    replacement_http_head(header_buffer, remote_host, &remote_port, &SIGN, configure);
+    replacement_http_head(header_buffer, remote_host, &remote_port, &SIGN,
+                          configure);
 
     //printf("%s", header_buffer);
 
@@ -65,7 +72,6 @@ void handle_client(int client_sock, struct sockaddr_in client_addr, conf *config
             forward_data(client_sock, remote_sock);
         }
         _exit(0);
-        
     }
 
     if (fork() == 0) {
@@ -80,6 +86,7 @@ void handle_client(int client_sock, struct sockaddr_in client_addr, conf *config
 
     close(client_sock);
     close(remote_sock);
+    return;
 }
 
 int send_data(int socket, char *buffer, int len)
@@ -102,13 +109,15 @@ void forward_data(int source_sock, int destination_sock)
     }
     shutdown(destination_sock, SHUT_RDWR);
     shutdown(source_sock, SHUT_RDWR);
+    return;
 }
 
-int create_connection(conf *configure, int SIGN)
+int create_connection(conf * configure, int SIGN)
 {
     struct sockaddr_in server_addr;
     struct hostent *server = NULL;
     int sock;
+    int optval;
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         return CLIENT_SOCKET_ERROR;
@@ -139,8 +148,16 @@ int create_connection(conf *configure, int SIGN)
     struct linger so_linger;
     so_linger.l_onoff = 1;
     so_linger.l_linger = 0;
-    setsockopt(sock, SOL_SOCKET, SO_LINGER, &so_linger,sizeof so_linger);
-    
+    if (setsockopt(sock, SOL_SOCKET, SO_LINGER, &so_linger, sizeof so_linger) <
+        0) {
+        return SERVER_SETSOCKOPT_ERROR;
+    }
+
+    if (setsockopt
+        (server_sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
+        return SERVER_SETSOCKOPT_ERROR;
+    }
+
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         return CLIENT_CONNECT_ERROR;
     }
@@ -151,21 +168,26 @@ int create_connection(conf *configure, int SIGN)
 int create_server_socket(int port)
 {
     int server_sock;
-    //int optval;
+    int optval;
     struct sockaddr_in server_addr;
 
     if ((server_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         return SERVER_SOCKET_ERROR;
     }
-/*
-    if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
-        return SERVER_SETSOCKOPT_ERROR;
-    }
-*/
+
     struct linger so_linger;
     so_linger.l_onoff = 1;
     so_linger.l_linger = 0;
-    setsockopt(server_sock, SOL_SOCKET, SO_LINGER, &so_linger,sizeof so_linger);
+    if (setsockopt
+        (server_sock, SOL_SOCKET, SO_LINGER, &so_linger,
+         sizeof so_linger) < 0) {
+        return SERVER_SETSOCKOPT_ERROR;
+    }
+
+    if (setsockopt
+        (server_sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
+        return SERVER_SETSOCKOPT_ERROR;
+    }
 
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
@@ -185,11 +207,11 @@ int create_server_socket(int port)
 }
 
 // 守护
-int init_daemon(int nochdir, int noclose, conf *configure, char *path)
+int init_daemon(int nochdir, int noclose, conf * configure, char *path)
 {
     char *p = strcat(path, configure->server_pid_file);
     FILE *fp = fopen(p, "w");
-    if(fp == NULL) {
+    if (fp == NULL) {
         fclose(fp);
         printf("%s Open Failed\n", p);
         exit(1);
@@ -236,6 +258,7 @@ int init_daemon(int nochdir, int noclose, conf *configure, char *path)
 void sigchld_handler(int signal)
 {
     while (waitpid(-1, NULL, WNOHANG) > 0) ;
+    return;
 }
 
 void server_loop(conf * configure)
@@ -244,7 +267,8 @@ void server_loop(conf * configure)
     socklen_t addrlen = sizeof(client_addr);
 
     while (1) {
-        client_sock = accept(server_sock, (struct sockaddr *)&client_addr, &addrlen);
+        client_sock =
+            accept(server_sock, (struct sockaddr *)&client_addr, &addrlen);
 
         if (fork() == 0) {      // 创建子进程处理客户端连接请求
             close(server_sock);
@@ -254,9 +278,10 @@ void server_loop(conf * configure)
         close(client_sock);
     }
     close(server_sock);
+    return;
 }
 
-void start_server(conf *configure)
+void start_server(conf * configure)
 {
     signal(SIGCHLD, sigchld_handler); // 防止子进程变成僵尸进程
 
@@ -265,16 +290,64 @@ void start_server(conf *configure)
     }
 
     server_loop(configure);
+    return;
 }
 
-int stop(int signal, char *program_name) {
+void get_pid(char *proces_name)
+{
+    char bufer[PATH_SIZE];
+    char comm[PATH_SIZE];
+    char proc_comm_name[PATH_SIZE];
+    int num[PATH_SIZE] = { 0 };
+    int n = 0;
+    FILE *fp;
+    DIR *dir;
+    struct dirent *ptr;
+    dir = opendir("/proc");
+    while ((ptr = readdir(dir)) != NULL) {
+        if (ptr->d_type == 4 && strcasecmp(ptr->d_name, ".")
+            && strcasecmp(ptr->d_name, "..")) {
+            bzero(bufer, 0);
+            sprintf(comm, "/proc/%s/comm", ptr->d_name);
+            if (access(comm, F_OK) == 0) {
+                fp = fopen(comm, "r");
+                if (fgets(bufer, PATH_SIZE - 1, fp) == NULL) {
+                    fclose(fp);
+                    continue;
+                }
+                sscanf(bufer, "%s", proc_comm_name);
+                if (!strcmp(proces_name, proc_comm_name)) {
+                    num[n] = atoi(ptr->d_name);
+                    n += 1;
+                }
+                fclose(fp);
+            }
+        }
+
+    }
+
+    n -= 2;                     // 去除最后一个搜索时的本身进程
+    for (; n >= 0; n--) {
+        printf("\t%d\n", num[n]);
+    }
+
+    closedir(dir);
+    return;
+}
+
+int stop(int signal, char *program_name)
+{
     if (signal == 1) {
         struct passwd *pwent = NULL;
         pwent = getpwnam("root");
-        return kill_all(15,1, &program_name, pwent);
+        return kill_all(15, 1, &program_name, pwent);
+    }
+    if (signal == 2) {
+        get_pid(program_name);
+        return 0;
     }
 
-    return 1;
+    return 0;
 }
 
 int get_executable_path(char *processdir, char *processname, int len)
@@ -298,14 +371,11 @@ int _main(int argc, char *argv[])
     header_buffer = (char *)malloc(BUF_SIZE);
     len_header_buffer = strlen(header_buffer);
 
-    //complete_data = (char *)malloc(BUF_SIZES);
-    //len_complete_data = strlen(complete_data);
-
     char *inifile = "conf/cproxy.ini";
     char path[PATH_SIZE] = { 0 };
     char executable_filename[PATH_SIZE] = { 0 };
     (void)get_executable_path(path, executable_filename, sizeof(path));
-    inifile=strcat(path, inifile);
+    inifile = strcat(path, inifile);
 
     conf *configure = (struct CONF *)malloc(sizeof(struct CONF));
     read_conf(inifile, configure);
@@ -324,19 +394,27 @@ int _main(int argc, char *argv[])
             init_daemon(1, 1, configure, path);
             break;
         case 's':
-            if (strcasecmp(optarg, "stop") == 0) {
+            if (strcasecmp(optarg, "stop") == 0
+                || strcasecmp(optarg, "quit") == 0) {
                 free_conf(configure);
                 free(header_buffer);
-                stop(1,  executable_filename);
+                exit(stop(1, executable_filename));
             }
-            exit(0);
+            if (strcasecmp(optarg, "restart") == 0
+                || strcasecmp(optarg, "reload") == 0) {
+                stop(1, executable_filename);
+            }
+            if (strcasecmp(optarg, "status") == 0) {
+                exit(stop(2, executable_filename));
+            }
             break;
         case 'c':
-            free_conf(configure);   // 如果指定-c参数就释放上次分配的内存
-            inifile=optarg;
+            free_conf(configure); // 如果指定-c参数就释放上次分配的内存
+            inifile = optarg;
             read_conf(inifile, configure);
             break;
-        case 'h': case '?':
+        case 'h':
+        case '?':
             help_information();
             exit(0);
             break;
@@ -344,13 +422,12 @@ int _main(int argc, char *argv[])
             ;
         }
     }
-    
-    if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1)     // 设置uid
-        exit(1);
 
+    if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1) // 设置uid
+        exit(1);
+    
     start_server(configure);
     free_conf(configure);
-    //free(complete_data);
     free(header_buffer);
     return 0;
 }
@@ -359,4 +436,3 @@ int main(int argc, char *argv[])
 {
     return _main(argc, argv);
 }
-

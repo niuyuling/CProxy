@@ -17,7 +17,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
 #include <dirent.h>
 
 #define PATH_SIZE 270
@@ -42,8 +41,6 @@ int remote_sock;
 
 char *header_buffer;
 int len_header_buffer;
-//char *complete_data;
-//int len_complete_data;
 
 int SIGN;
 

@@ -1,8 +1,6 @@
 #ifndef KILL_H
 #define KILL_H
 
-
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif

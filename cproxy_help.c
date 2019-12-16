@@ -8,22 +8,21 @@ char help_information(void)
     static const struct {
         const char *a, *b, *c, *d;
     } author = {
-    "aixiao@aixiao.me", "aixiao", "Author:", "Email :",};
-    static const char usage[] =
-        "Usage: [-?hdsc] [-s signal] [-c filename]";
+        "aixiao@aixiao.me", "aixiao", "Author:", "Email :",
+    };
+    static const char usage[] = "Usage: [-?hd] [-s signal] [-c filename]";
 
     static const char *s_help[] = {
         "",
         "Options:",
         "    -?,-h       : help information",
         "    -d          : daemon",
-        "    -s signal   : send signal to a master process: stop",
+        "    -s signal   : send signal to a master process: stop, quit, restart, reload, status",
         "    -c filename : set configuration file (default: conf/cproxy.ini)",
         "",
         0
     };
 
-    
     //fprintf(stderr, "%s %s\n", author.c, author.b);
     fprintf(stderr, "%s %s\n", name, subject);
     fprintf(stderr, "%s %s\n", author.c, author.a);
@@ -38,4 +37,3 @@ char help_information(void)
 
     return 0;
 }
-

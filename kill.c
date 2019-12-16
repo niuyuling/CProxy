@@ -2,7 +2,8 @@
 
 static pid_t opt_ns_pid = 0;
 
-static int exact = 1, reg = 0, wait_until_dead = 1, process_group = 0, ignore_case = 0;
+static int exact = 1, reg = 0, wait_until_dead = 1, process_group =
+    0, ignore_case = 0;
 static long younger_than = 0, older_than = 0;
 
 typedef struct NAMEINFO {
@@ -336,8 +337,7 @@ static int match_process_name(const char *proc_comm,
     return (0 == strcmp2(match_name, proc_comm, ignore_case));
 }
 
-int
-kill_all(int signal, int name_count, char **namelist, struct passwd *pwent)
+int kill_all(int signal, int name_count, char **namelist, struct passwd *pwent)
 {
     struct stat st;
     NAMEINFO *name_info = NULL;
@@ -407,32 +407,32 @@ kill_all(int signal, int name_count, char **namelist, struct passwd *pwent)
                     != 0)
                     continue;
             } else {
-            if (!name_info[j].st.st_dev) {
-                if (!match_process_name(comm, length, command, namelist[j],
-                                        name_info[j].name_length, got_long))
-                    continue;
+                if (!name_info[j].st.st_dev) {
+                    if (!match_process_name(comm, length, command, namelist[j],
+                                            name_info[j].name_length, got_long))
+                        continue;
 
-            } else {
-                int ok = 1;
-                if (asprintf(&path, PROC_BASE "/%d/exe", pid_table[i]) < 0)
-                    continue;
-                if (stat(path, &st) < 0)
-                    ok = 0;
-                else if (name_info[j].st.st_dev != st.st_dev ||
-                         name_info[j].st.st_ino != st.st_ino) {
-                    size_t len = strlen(namelist[j]);
-                    char *linkbuf = malloc(len + 1);
-
-                    if (!linkbuf ||
-                        readlink(path, linkbuf, len + 1) != (ssize_t) len ||
-                        memcmp(namelist[j], linkbuf, len))
+                } else {
+                    int ok = 1;
+                    if (asprintf(&path, PROC_BASE "/%d/exe", pid_table[i]) < 0)
+                        continue;
+                    if (stat(path, &st) < 0)
                         ok = 0;
-                    free(linkbuf);
+                    else if (name_info[j].st.st_dev != st.st_dev ||
+                             name_info[j].st.st_ino != st.st_ino) {
+                        size_t len = strlen(namelist[j]);
+                        char *linkbuf = malloc(len + 1);
+
+                        if (!linkbuf ||
+                            readlink(path, linkbuf, len + 1) != (ssize_t) len ||
+                            memcmp(namelist[j], linkbuf, len))
+                            ok = 0;
+                        free(linkbuf);
+                    }
+                    free(path);
+                    if (!ok)
+                        continue;
                 }
-                free(path);
-                if (!ok)
-                    continue;
-            }
             }
             found_name = j;
             break;
