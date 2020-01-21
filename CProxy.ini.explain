@@ -3,6 +3,8 @@
 
 [server]模块
 uid 设置进程UID
+process 进程数
+timer 超时
 local_port 端口
 pid_file PID文件
 
