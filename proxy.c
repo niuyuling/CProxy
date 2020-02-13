@@ -3,6 +3,7 @@
 #include "request.h"
 #include "timeout.h"
 #include "conf.h"
+#include "kill.h"
 #include "help.h"
 
 #define SERVER_STOP 1
@@ -154,8 +155,12 @@ process_signal(int signal, char *process_name)
     for (; n >= 0; n--) {
         if (signal == SERVER_STATUS)
             printf("\t%d\n", num[n]);
-        if (signal == SERVER_STOP || signal == SERVER_RELOAD)
-            kill(num[n], SIGTERM);
+    }
+    if (signal == SERVER_STOP || signal == SERVER_RELOAD) {
+        //kill(num[n], SIGTERM);
+        struct passwd *pwent = NULL;
+        pwent = getpwnam("root");
+        return kill_all(15, 1, &process_name, pwent);
     }
     closedir(dir);
     return 0;
@@ -263,8 +268,13 @@ int _main(int argc, char *argv[])
         }
     }
 
+    if (daemon(1, 1)) {
+        perror("daemon");
+        return 1;
+    }
+
     while (process-- > 0 && fork() == 0)
-        
+
     epollfd = epoll_create(MAX_CONNECTION);
     if (epollfd == -1) {
         perror("epoll_create");
@@ -276,12 +286,7 @@ int _main(int argc, char *argv[])
     if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock, &event)) {
         exit(1);
     }
-    
-    if (daemon(1, 1)) {
-        perror("daemon");
-        return 1;
-    }
-    
+
     if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1) // 设置uid
         exit(1);
     

@@ -123,7 +123,7 @@ static char *regrep(char *str, int *str_len, const char *src, char *dest,
     return str;
 }
 
-// 删除字符串head中第一位到character处并拼接string, character为空返回原字符串.(string字符替换第一个字符到character处)
+// 删除字符串head中第一位到 character 处并拼接 string, character 为空返回原字符串.(string 字符替换第一个字符到 character 处)
 char *splice_head(char *head, const char *character, char *string)
 {
     int len_first = strlen(string);
@@ -137,7 +137,7 @@ char *splice_head(char *head, const char *character, char *string)
     return strcat(new_string, p1);
 }
 
-// 删除字符串head中character到string处, character为空返回原字符串.
+// 删除字符串 head 中 character 到 string 处, character 为空返回原字符串.
 char *delete_head(char *head, const char *character, int string)
 {
     int head_len = strlen(head);
@@ -158,9 +158,9 @@ char *delete_head(char *head, const char *character, int string)
 
 int extract_host(char *header, char *host, char *port, char *H)
 {
-    bzero(host, 0);
-    bzero(port, 0);
-    bzero(H, 0);
+    bzero(host, strlen(host));
+    bzero(port, strlen(port));
+    bzero(H, strlen(H));
     char *_p = strstr(header, "CONNECT"); // 在 CONNECT 方法中解析 隧道主机名称及端口号
     if (_p) {
         char *_p1 = strchr(_p, ' ');
@@ -170,8 +170,8 @@ int extract_host(char *header, char *host, char *port, char *H)
         if (_p2) {
             char s_port[10];
             bzero(s_port, 10);
-            strncpy(host, _p1 + 1, (int)(_p2 - _p1) - 1);
-            strncpy(s_port, _p2 + 1, (int)(_p3 - _p2) - 1);
+            strncpy_(host, _p1 + 1, (int)(_p2 - _p1) - 1);
+            strncpy_(s_port, _p2 + 1, (int)(_p3 - _p2) - 1);
             strcpy(port, s_port);
 
         } else {
@@ -206,7 +206,7 @@ int extract_host(char *header, char *host, char *port, char *H)
         host[h_len] = '\0';
     } else {
         int h_len = (int)(p1 - p - 5 - 1 - 1);
-        strncpy(host, p + 5 + 1, h_len);
+        strncpy_(host, p + 5 + 1, h_len);
         host[h_len] = '\0';
         strcpy(port, "80");
     }
@@ -214,6 +214,18 @@ int extract_host(char *header, char *host, char *port, char *H)
     strcat(H, ":");
     strcat(H, port);
     return 0;
+}
+
+char *get_path(char *url, char *path)
+{
+    if (url) {
+        char *p0 = strstr(url+7, "/");
+        if (p0)
+            return strncpy_(path, p0, strlen(p0));
+        else
+            return NULL;
+    }
+    return NULL;
 }
 
 char *request_head(conn *in, conf *configure)
@@ -245,6 +257,8 @@ char *request_head(conn *in, conf *configure)
     char port[path_len];
     char H[path_len*2];
     extract_host(in->header_buffer, host, port, H);
+    
+
 
     if (strncmp(M, "CONNECT", 7) == 0) {
         char https_del_copy[configure->https_del_len];
@@ -276,8 +290,10 @@ char *request_head(conn *in, conf *configure)
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\r", 2, "\r", 1);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\n", 2, "\n", 1);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[M]", 3, M, M_len);
+        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[method]", 8, M, M_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[U]", 3, U, U_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[V]", 3, V, V_len);
+        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[version]", 9, V, V_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, host, (int)strlen(host));
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[port]", 6, port, (int)strlen(port));
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[H]", 3, H, (int)strlen(H));
@@ -300,7 +316,14 @@ char *request_head(conn *in, conf *configure)
         char https_del_copy[configure->http_del_len];
         char *result = NULL;
         int incomplete_head_len;
-
+        char url[U_len], uri[U_len];
+        int uri_len;
+        
+        
+        strcpy(url, U);
+        get_path(url, uri);
+        uri_len = strlen(uri);
+        //printf("%s\n", uri);
         if (configure->http_port > 0)
             remote_port = configure->http_port;
         if (configure->https_ip != NULL)
@@ -325,8 +348,11 @@ char *request_head(conn *in, conf *configure)
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\r", 2, "\r", 1);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\n", 2, "\n", 1);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[M]", 3, M, M_len);
+        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[method]", 8, M, M_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[U]", 3, U, U_len);
+        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[uri]", 5, uri, uri_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[V]", 3, V, V_len);
+        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[version]", 9, V, V_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, host, (int)strlen(host));
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[port]", 6, port, (int)strlen(port));
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[H]", 3, H, (int)strlen(H));

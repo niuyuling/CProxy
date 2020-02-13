@@ -5,7 +5,7 @@ CFLAGS += -g -O2 -Wall -I../iniparser/src -L../iniparser
 LIBS = -liniparser -pthread -static
 OBJ := CProxy
 
-all: proxy.o http.o request.o picohttpparser.o conf.o timeout.o help.o
+all: proxy.o http.o request.o picohttpparser.o conf.o timeout.o kill.o help.o
 	$(CC) $(CFLAGS) -o $(OBJ) $^ $(LIBS)
 .c.o:
 	$(CC) $(CFLAGS) -c $< $(LIBS)
