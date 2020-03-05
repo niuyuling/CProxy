@@ -1,26 +1,21 @@
-name: C/C++ CI
 
-on:
+## This is free software, lisence use MIT.# # Copyright (C) 2019 P3TERX <https://p3terx.com># Copyright (C) 2019 KFERMercer <KFER.Mercer@gmail.com># # <https://github.com/KFERMercer/OpenWrt-CI>#name: OpenWrt-CIon:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-
-jobs:
+    branches: 
+      - master  # schedule:  #   - cron: 0 20 * * *  # release:  #   types: [published]jobs:
   build:
-
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v2
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+      - name: Checkout
+        uses: actions/checkout@master
+        with:
+          ref: master
+
+      - name: Initialization environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
 git clone https://github.com/niuyuling/cproxy.git  
 git clone https://github.com/ndevilla/iniparser.git  
 cd iniparser  
