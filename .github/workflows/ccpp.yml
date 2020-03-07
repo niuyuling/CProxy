@@ -1,22 +1,81 @@
-name: C/C++ CI
+  
+#
+# This is free software, lisence use MIT.
+# 
+# Copyright (C) 2019 P3TERX <https://p3terx.com>
+# Copyright (C) 2019 KFERMercer <KFER.Mercer@gmail.com>
+# 
+# <https://github.com/KFERMercer/OpenWrt-CI>
+#
+
+name: cproxy
 
 on:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    branches: 
+      - master
+  #     ↑↑↑ 改成你的分支名, 一般是master
+  # schedule:
+     - cron: 0 20 * * *
+  # release:
+     types: [published]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v2
-    - name: configure
-      run: git clone https://github.com/niuyuling/cproxy.git  
-git clone https://github.com/ndevilla/iniparser.git  
-cd iniparser  
-make  
-cd ../cproxy  
-make clean; make  
+      - name: Checkout
+        uses: actions/checkout@master
+        with:
+          ref: master
+        #      ↑↑↑ 改成你的分支名, 一般是master
+
+      - name: Initialization environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          docker rmi `docker images -q`
+          echo "Deleting files, please wait ..."
+          sudo rm -rf \
+            /usr/share/dotnet \
+            /etc/mysql \
+            /etc/php
+          sudo -E apt-get -y purge \
+            azure-cli \
+            ghc* \
+            zulu* \
+            hhvm \
+            llvm* \
+            firefox \
+            google* \
+            dotnet* \
+            powershell \
+            openjdk* \
+            mysql* \
+            php*
+          sudo -E apt-get update
+          sudo -E apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler
+          sudo -E apt-get -y autoremove --purge
+          sudo -E apt-get clean
+      - name: clone cproxy
+        run: |
+          git clone https://github.com/niuyuling/cproxy.git  
+      - name: clone iniparser
+        run: |
+          git clone https://github.com/ndevilla/iniparser.git
+      - name: cd iniparser
+        run: |  
+          cd iniparser      
+       - name: 编译iniparser
+        run: |  
+          make      
+       - name: cd cproxy
+        run: |
+          cd ../cproxy      
+       - name: make clean
+        run: |
+          make clean;      
+       - name: 编译cproxy
+        run: | 
+           make  
