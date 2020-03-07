@@ -60,10 +60,10 @@ jobs:
           sudo -E apt-get clean
       - name: clone cproxy
         run: |
-          git clone https://github.com/niuyuling/cproxy.git  
+          git clone --depth 1 https://github.com/niuyuling/cproxy.git -b master cproxy
       - name: clone iniparser
         run: |
-          git clone https://github.com/ndevilla/iniparser.git
+          git clone --depth 1 https://github.com/ndevilla/iniparser.git -b master iniparser
       - name: cd iniparser
         run: |  
           cd iniparser      
