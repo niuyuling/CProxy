@@ -67,7 +67,7 @@ jobs:
       - name: cd iniparser
         run: |  
           cd iniparser      
-       - name: 编译iniparser
+       - name: make iniparser
         run: |  
           make      
        - name: cd cproxy
@@ -75,7 +75,7 @@ jobs:
           cd ../cproxy      
        - name: make clean
         run: |
-          make clean;      
-       - name: 编译cproxy
+          make clean      
+       - name: make cproxy
         run: | 
           make  
