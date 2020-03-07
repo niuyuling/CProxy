@@ -1,81 +1,43 @@
-  
 #
 # This is free software, lisence use MIT.
 # 
-# Copyright (C) 2019 P3TERX <https://p3terx.com>
 # Copyright (C) 2019 KFERMercer <KFER.Mercer@gmail.com>
 # 
 # <https://github.com/KFERMercer/OpenWrt-CI>
 #
 
-name: cproxy
+name: Merge-upstream
 
 on:
   push:
     branches: 
       - master
-  #     ↑↑↑ 改成你的分支名, 一般是master
-  #  schedule:
-  #   - cron: 0 20 * * *
-  #  release:
-  #   types: [published]
+  schedule:
+    - cron: 30 19 * * *
 
 jobs:
-  build:
+  merge:
+
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@master
-        with:
-          ref: master
-        #      ↑↑↑ 改成你的分支名, 一般是master
 
-      - name: Initialization environment
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          docker rmi `docker images -q`
-          echo "Deleting files, please wait ..."
-          sudo rm -rf \
-            /usr/share/dotnet \
-            /etc/mysql \
-            /etc/php
-          sudo -E apt-get -y purge \
-            azure-cli \
-            ghc* \
-            zulu* \
-            hhvm \
-            llvm* \
-            firefox \
-            google* \
-            dotnet* \
-            powershell \
-            openjdk* \
-            mysql* \
-            php*
-          sudo -E apt-get update
-          sudo -E apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler
-          sudo -E apt-get -y autoremove --purge
-          sudo -E apt-get clean
-      - name: clone cproxy
-        run: |
-          git clone --depth 1 https://github.com/niuyuling/cproxy.git -b master cproxy
-      - name: clone iniparser
-        run: |
-          git clone --depth 1 https://github.com/ndevilla/iniparser.git -b master iniparser
-      - name: cd iniparser
-        run: |  
-          cd ./iniparser      
-       - name: make iniparser
-        run: |  
-          make      
-       - name: cd cproxy
-        run: |
-          cd ../cproxy      
-       - name: make clean
-        run: |
-          make clean      
-       - name: make cproxy
-        run: | 
-          make  
+    - name: Checkout
+      uses: actions/checkout@master
+      with:
+        ref: master
+        fetch-depth: 0
+        lfs: true
+
+    - name: Set git identity
+      run : |
+        git config --global user.email "KFER.Mercer@gmail.com"
+        git config --global user.name "KFERMercer"
+
+    - name: Load upstream commits
+      run: git pull https://github.com/ndevilla/iniparser.git --no-edit --strategy-option ours
+
+    - name: Push Commits
+      env:
+        DOWNSTREAM_BRANCH: master
+      run: git push origin $DOWNSTREAM_BRANCH
