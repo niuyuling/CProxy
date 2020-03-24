@@ -1,7 +1,10 @@
 #ifndef CONF_H
 #define CONF_H
 
-#include "iniparser.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <error.h>
 #include <unistd.h>
 
 // 配置文件结构
@@ -10,7 +13,9 @@ typedef struct CONF {
     int uid;
     int process;
     int timer;
-    int server_port;
+    int sslencoding;
+    //int server_port;
+    int local_port;
     char *server_pid_file;
     int server_pid_file_len;    // length
 
@@ -42,7 +47,7 @@ typedef struct CONF {
 } conf;
 
 char *strncpy_(char *dest, const char *src, size_t n);
-void read_conf(char *file, conf * p);
-void free_conf(conf * p);
+void read_conf(char *file, conf *p);
+void free_conf(conf *p);
 
 #endif

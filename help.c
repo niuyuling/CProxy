@@ -14,11 +14,14 @@ char help_information(void)
     static const char *s_help[] = {
         "",
         "Options:",
-        "    -?,-h       : help information",
-        "    -p          : process number, default 2 process",
-        "    -t          : timeout minute, default is no timeout",
-        "    -s signal   : send signal to a master process: stop, quit, restart, reload, status",
-        "    -c filename : set configuration file, default CProxy.ini",
+        "    -l --local_address     : localip:localport",
+        "    -f --remote_address    : remoteip:remote:port",
+        "    -p --process           : process number, default: 2",
+        "    -t --timeout           : timeout minute, default: no timeout",
+        "    -e --coding            : ssl coding, default: [0-128]",
+        "    -s --signal            : send signal to a master process: stop, quit, restart, reload, status",
+        "    -c --config            : set configuration file, default: CProxy.ini",
+        "    -? -h --? --help       : help information",
         "",
         0
     };

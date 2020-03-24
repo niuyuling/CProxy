@@ -5,31 +5,34 @@
 
 
 ### Build
-    git clone https://github.com/niuyuling/cproxy.git  
-    git clone https://github.com/ndevilla/iniparser.git  
-    cd iniparser  
-    make  
-    cd ../cproxy  
+    Linux编译:  
+    git clone https://github.com/niuyuling/CProxy.git  
+    cd CProxy  
     make clean; make  
     
     windows 10子系统交叉编译:  
     apt-get install gcc-aarch64-linux-gnu  
     make clean; CROSS_COMPILE=aarch64-linux-gnu- make  
+    
+    Android 编译:  
+    ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=Application.mk APP_BUILD_SCRIPT=Android.mk  
 
 ### Help Information
-    ./CProxy -h
     CProxy proxy server
     Author: aixiao@aixiao.me
     Usage: [-?hpt] [-s signal] [-c filename]
 
     Options:
-        -?,-h       : help information
-        -p          : process number, default 2 process
-        -t          : timeout minute, default is no timeout
-        -s signal   : send signal to a master process: stop, quit, restart, reload, status
-        -c filename : set configuration file (default: cproxy.ini)
+        -l --local_address     : localip:localport
+        -f --remote_address    : remoteip:remote:port
+        -p --process           : process number, default: 2
+        -t --timeout           : timeout minute, default: no timeout
+        -e --coding            : ssl coding, default: [0-128]
+        -s --signal            : send signal to a master process: stop, quit, restart, reload, status
+        -c --config            : set configuration file, default: CProxy.ini
+        -? -h --? --help       : help information
 
-    Jan 13 2020 19:56:06 Compile、link.
+    Mar 22 2020 09:29:11 Compile、link.
 
     #启动
     ./CProxy -c CProxy.ini
@@ -39,6 +42,6 @@
     ./CProxy -s reload -c CProxy.ini
     or
     ./CProxy -s restart -c CProxy.ini
-    #状态
+    #状态(只打印Pid)
     ./CProxy -s status
     

@@ -1,6 +1,16 @@
 #include "http.h"
 #include "proxy.h"
 
+int sslEncodeCode;
+
+/* 对数据进行编码 */
+static void dataEncode(char *data, int data_len)
+{
+    if (sslEncodeCode)
+        while (data_len-- > 0)
+            data[data_len] ^= sslEncodeCode;
+}
+
 static char *read_data(conn *in, char *data, int *data_len)
 {
     char *new_data;
@@ -56,6 +66,7 @@ static void serverToClient(conn *server)
     client = server - 1;
 
     while ((server->header_buffer_len = read(server->fd, server->header_buffer, BUFFER_SIZE)) > 0) {
+        dataEncode(server->header_buffer, server->header_buffer_len);
         write_len = write(client->fd, server->header_buffer, server->header_buffer_len);
         if (write_len <= 0) {
             if (write_len == 0 || errno != EAGAIN)
@@ -86,7 +97,7 @@ void clienttoserver(conn *in)
     int write_len;
     conn *remote;
     remote = in + 1;
-
+    
     write_len = write(remote->fd, in->header_buffer, in->header_buffer_len);
     if (write_len == in->header_buffer_len) {
         in->header_buffer_len = 0;
@@ -144,6 +155,7 @@ void tcp_in(conn *in, conf *configure)
             epoll_ctl(epollfd, EPOLL_CTL_ADD, remote->fd, &epollEvent);
         }
     }
+    dataEncode(in->header_buffer, in->header_buffer_len);
     clienttoserver(in);
     return;
 }

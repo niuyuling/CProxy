@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -16,6 +17,8 @@
 #include <pwd.h>
 #include <dirent.h>
 #include <pthread.h>
+#include <getopt.h>
+#include <netinet/in.h>
 
 #define MAX_CONNECTION 1020
 #define BUFFER_SIZE 10240

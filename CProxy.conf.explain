@@ -1,0 +1,57 @@
+global {
+    // 设置进程UID
+    uid=3004;
+    
+    // 进程数
+    process=2;
+    
+    // 超时
+    timer=60;
+    
+    // ssl编码，1-128
+    sslencoding=0;
+    
+    // 本地端口
+    local_port=9606;
+}
+
+http {
+    // 代理IP
+    http_ip=192.168.1.102;
+    // 代理端口
+    http_port=1080;
+    http_del="x-online-host,X-Online-Host,host,Host";
+    http_first="[M] [U] [V]\r\nHost: [host]\r\n";
+    //strrep="Windows NT 10.0->Linux";
+    //regrep="Host*.+?->Host: hu60.cn:443";
+}
+
+https {
+    // 代理IP
+    https_ip=192.168.1.102;
+    // 代理端口
+    https_port=1080;
+    // 删除Host行
+    https_del="Host,host,x-online-host";
+    // https头第一行
+    https_first="[M] [H] [V]\r\nHost: [host]\r\n";
+    //strrep="Windows NT 10.0->Linux";
+    //regrep="Host*.+?->Host: hu60.cn:443";
+}
+
+http、https 模块关键字: [M], [method], [uri], [U], [V], [version], [H], [host], [port], \r, \n, \v, \f, \b, \t, \a. 如果原本请求头含有关键字也会被替换.
+
+[M]、[method] 原请求方法
+[U] 原请求url
+[uri] 原请求uri(http 模块)
+[V]、[version] 原请求协议版本
+[host] 原请求host
+[port] 原请求端口
+[H] 原请求[host]:[port]
+
+关键字strrep替换字符串指令.
+strrep = "Mi MIX 2->Linux"; 以"->"为分界符,"Mi MIX 2"字符串替换为"Linux"字符串.
+
+关键字regrep正则匹配替换字符串.
+regrep = "Host*.+?->Host: iread.wo.cn:443"; 以"->"为分界符,匹配到的内容"Host*.+?"替换为"Host: iread.wo.cn:443"字符串.
+

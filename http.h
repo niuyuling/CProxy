@@ -10,6 +10,8 @@
 int remote_port;
 char remote_host[128];
 
+extern int sslEncodeCode;
+
 typedef struct conn_t {
     int fd;
     char *header_buffer;

@@ -156,11 +156,10 @@ char *delete_head(char *head, const char *character, int string)
     return strcpy(head, tmp);
 }
 
-int extract_host(char *header, char *host, char *port, char *H)
+int extract_host(char *header, char *host, char *port)
 {
     bzero(host, strlen(host));
     bzero(port, strlen(port));
-    bzero(H, strlen(H));
     char *_p = strstr(header, "CONNECT"); // 在 CONNECT 方法中解析 隧道主机名称及端口号
     if (_p) {
         char *_p1 = strchr(_p, ' ');
@@ -178,9 +177,6 @@ int extract_host(char *header, char *host, char *port, char *H)
             strncpy(host, _p1 + 1, (int)(_p3 - _p1) - 1);
             strcpy(port, "80");
         }
-        strcpy(H, host);
-        strcat(H, ":");
-        strcat(H, port);
         return 0;
     }
 
@@ -210,9 +206,6 @@ int extract_host(char *header, char *host, char *port, char *H)
         host[h_len] = '\0';
         strcpy(port, "80");
     }
-    strcpy(H, host);
-    strcat(H, ":");
-    strcat(H, port);
     return 0;
 }
 
@@ -256,9 +249,10 @@ char *request_head(conn *in, conf *configure)
     char host[path_len];
     char port[path_len];
     char H[path_len*2];
-    extract_host(in->header_buffer, host, port, H);
+    extract_host(in->header_buffer, host, port);
     
-
+    
+//printfconf(configure);
 
     if (strncmp(M, "CONNECT", 7) == 0) {
         char https_del_copy[configure->https_del_len];
@@ -296,6 +290,10 @@ char *request_head(conn *in, conf *configure)
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[version]", 9, V, V_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, host, (int)strlen(host));
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[port]", 6, port, (int)strlen(port));
+        memset(H, 0, strlen(H));
+        memcpy(H, host, path_len);
+        strcat(H, ":");
+        strcat(H, port);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[H]", 3, H, (int)strlen(H));
         if (configure->https_strrep) {
             incomplete_head = replace(incomplete_head, &incomplete_head_len, configure->https_strrep_aim, configure->https_strrep_aim_len, configure->https_strrep_obj, configure->https_strrep_obj_len);
@@ -355,6 +353,10 @@ char *request_head(conn *in, conf *configure)
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[version]", 9, V, V_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, host, (int)strlen(host));
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[port]", 6, port, (int)strlen(port));
+        memset(H, 0, strlen(H));
+        memcpy(H, host, path_len);
+        strcat(H, ":");
+        strcat(H, port);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[H]", 3, H, (int)strlen(H));
         if (configure->http_strrep) {
             incomplete_head = replace(incomplete_head, &incomplete_head_len, configure->http_strrep_aim, configure->http_strrep_aim_len, configure->http_strrep_obj, configure->http_strrep_obj_len);

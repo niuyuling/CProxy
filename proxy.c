@@ -182,11 +182,12 @@ int get_executable_path(char *processdir, char *processname, int len)
 
 int _main(int argc, char *argv[])
 {
+    sslEncodeCode = 0;
     int opt, i, process;
     char path[PATH_SIZE] = { 0 };
     char executable_filename[PATH_SIZE] = { 0 };
     (void)get_executable_path(path, executable_filename, sizeof(path));
-    char *inifile = "/CProxy.ini";
+    char *inifile = "/CProxy.conf";
     inifile = strcat(path, inifile);
     conf *configure = (struct CONF *)malloc(sizeof(struct CONF));
     read_conf(inifile, configure);
@@ -198,9 +199,24 @@ int _main(int argc, char *argv[])
     if (configure->process > 0)
         process = configure->process;
 
-    char optstrs[] = ":l:f:t:p:c:s:h?";
+    //char optstring[] = ":l:f:t:p:c:e:s:h?";
+    int longindex = 0;
+    char optstring[] = ":l:f:t:p:c:e:s:h?";
+    static struct option longopts[] = {
+        { "local_address", required_argument, 0, 'l' },
+        { "remote_address", required_argument, 0, 'f' },
+        { "timeout", required_argument, 0, 't' },
+        { "process", required_argument, 0, 'p' },
+        { "config", required_argument, 0, 'c' },
+        { "coding", required_argument, 0, 'e' },
+        { "signal", required_argument, 0, 's' },
+        { "help", no_argument, 0, 'h' },
+        { "?", no_argument, 0, '?' },
+        { 0, 0, 0, 0 }
+    };
     char *p = NULL;
-    while (-1 != (opt = getopt(argc, argv, optstrs))) {
+    //while (-1 != (opt = getopt(argc, argv, optstring))) {
+    while (-1 != (opt = getopt_long(argc, argv, optstring, longopts, &longindex))) {
         switch (opt) {
         case 'l':
             p = strchr(optarg, ':');
@@ -231,6 +247,9 @@ int _main(int argc, char *argv[])
             inifile = optarg;
             read_conf(inifile, configure);
             break;
+        case 'e':
+            sslEncodeCode = atoi(optarg);
+            break;
         case 's':
             if (strcasecmp(optarg, "stop") == 0 || strcasecmp(optarg, "quit") == 0) {
                 free_conf(configure);
@@ -250,8 +269,11 @@ int _main(int argc, char *argv[])
             ;
         }
     }
-    
-    server_sock = create_server_socket(configure->server_port);
+
+    if (configure->sslencoding > 0)
+        sslEncodeCode = configure->sslencoding;
+
+    server_sock = create_server_socket(configure->local_port);
     signal(SIGPIPE, SIG_IGN);  //忽略PIPE信号
     
     memset(cts, 0, sizeof(cts));
