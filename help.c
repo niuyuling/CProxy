@@ -20,7 +20,7 @@ char help_information(void)
         "    -t --timeout           : timeout minute, default: no timeout",
         "    -e --coding            : ssl coding, default: [0-128]",
         "    -s --signal            : send signal to a master process: stop, quit, restart, reload, status",
-        "    -c --config            : set configuration file, default: CProxy.ini",
+        "    -c --config            : set configuration file, default: CProxy.conf",
         "    -? -h --? --help       : help information",
         "",
         0

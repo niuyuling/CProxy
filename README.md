@@ -14,7 +14,7 @@
     apt-get install gcc-aarch64-linux-gnu  
     make clean; CROSS_COMPILE=aarch64-linux-gnu- make  
     
-    Android 编译:  
+    Android NDK 编译:  
     ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=Application.mk APP_BUILD_SCRIPT=Android.mk  
 
 ### Help Information
@@ -29,7 +29,7 @@
         -t --timeout           : timeout minute, default: no timeout
         -e --coding            : ssl coding, default: [0-128]
         -s --signal            : send signal to a master process: stop, quit, restart, reload, status
-        -c --config            : set configuration file, default: CProxy.ini
+        -c --config            : set configuration file, default: CProxy.conf
         -? -h --? --help       : help information
 
     Mar 22 2020 09:29:11 Compile、link.
@@ -42,6 +42,6 @@
     ./CProxy -s reload -c CProxy.ini
     or
     ./CProxy -s restart -c CProxy.ini
-    #状态(只打印Pid)
+    #状态(只打印 Pid)
     ./CProxy -s status
     
