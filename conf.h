@@ -25,10 +25,10 @@ typedef struct CONF {
     int http_ip_len, http_del_len, http_first_len;
     char *http_strrep, *http_regrep;
     int http_strrep_len, http_regrep_len;
-    
+
     char *http_strrep_aim, *http_strrep_obj;
     int http_strrep_aim_len, http_strrep_obj_len;
-    
+
     char *http_regrep_aim, *http_regrep_obj;
     int http_regrep_aim_len, http_regrep_obj_len;
 
@@ -38,16 +38,16 @@ typedef struct CONF {
     int https_ip_len, https_del_len, https_first_len;
     char *https_strrep, *https_regrep;
     int https_strrep_len, https_regrep_len;
-    
+
     char *https_strrep_aim, *https_strrep_obj;
     int https_strrep_aim_len, https_strrep_obj_len;
-    
+
     char *https_regrep_aim, *https_regrep_obj;
     int https_regrep_aim_len, https_regrep_obj_len;
 } conf;
 
 char *strncpy_(char *dest, const char *src, size_t n);
-void read_conf(char *file, conf *p);
-void free_conf(conf *p);
+void read_conf(char *file, conf * p);
+void free_conf(conf * p);
 
 #endif

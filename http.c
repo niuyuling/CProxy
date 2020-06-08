@@ -11,7 +11,7 @@ static void dataEncode(char *data, int data_len)
             data[data_len] ^= sslEncodeCode;
 }
 
-static char *read_data(conn *in, char *data, int *data_len)
+static char *read_data(conn * in, char *data, int *data_len)
 {
     char *new_data;
     int read_len;
@@ -39,7 +39,7 @@ static char *read_data(conn *in, char *data, int *data_len)
     return data;
 }
 
-void close_connection(conn *conn)
+void close_connection(conn * conn)
 {
     epoll_ctl(epollfd, EPOLL_CTL_DEL, conn->fd, NULL);
     close(conn->fd);
@@ -59,7 +59,7 @@ void close_connection(conn *conn)
         close_connection(conn);
 }
 
-static void serverToClient(conn *server)
+static void serverToClient(conn * server)
 {
     int write_len;
     conn *client;
@@ -84,20 +84,19 @@ static void serverToClient(conn *server)
         if (server->header_buffer_len < BUFFER_SIZE)
             break;
     }
-    if (server->header_buffer_len == 0
-        || (server->header_buffer_len == -1 && errno != EAGAIN))
+    if (server->header_buffer_len == 0 || (server->header_buffer_len == -1 && errno != EAGAIN))
         close_connection(server);
     else
         server->header_buffer_len = server->sent_len = 0;
 
 }
 
-void clienttoserver(conn *in)
+void clienttoserver(conn * in)
 {
     int write_len;
     conn *remote;
     remote = in + 1;
-    
+
     write_len = write(remote->fd, in->header_buffer, in->header_buffer_len);
     if (write_len == in->header_buffer_len) {
         in->header_buffer_len = 0;
@@ -113,35 +112,22 @@ void clienttoserver(conn *in)
 // 判断请求类型
 static int8_t request_type(char *data)
 {
-    if (strncmp(data, "GET", 3) == 0 ||
-    strncmp(data, "POST", 4) == 0 ||
-    strncmp(data, "CONNECT", 7) == 0 ||
-    strncmp(data, "HEAD", 4) == 0 ||
-    strncmp(data, "PUT", 3) == 0 ||
-    strncmp(data, "OPTIONS", 7) == 0 ||
-    strncmp(data, "MOVE", 4) == 0 ||
-    strncmp(data, "COPY", 4) == 0 ||
-    strncmp(data, "TRACE", 5) == 0 ||
-    strncmp(data, "DELETE", 6) == 0 ||
-    strncmp(data, "LINK", 4) == 0 ||
-    strncmp(data, "UNLINK", 6) == 0 ||
-    strncmp(data, "PATCH", 5) == 0 ||
-    strncmp(data, "WRAPPED", 7) == 0)
+    if (strncmp(data, "GET", 3) == 0 || strncmp(data, "POST", 4) == 0 || strncmp(data, "CONNECT", 7) == 0 || strncmp(data, "HEAD", 4) == 0 || strncmp(data, "PUT", 3) == 0 || strncmp(data, "OPTIONS", 7) == 0 || strncmp(data, "MOVE", 4) == 0 || strncmp(data, "COPY", 4) == 0 || strncmp(data, "TRACE", 5) == 0 || strncmp(data, "DELETE", 6) == 0 || strncmp(data, "LINK", 4) == 0 || strncmp(data, "UNLINK", 6) == 0 || strncmp(data, "PATCH", 5) == 0 || strncmp(data, "WRAPPED", 7) == 0)
         return HTTP_TYPE;
     return OTHER_TYPE;
 }
 
-void tcp_in(conn *in, conf *configure)
+void tcp_in(conn * in, conf * configure)
 {
     if (in->fd < 0)
         return;
     // 如果in - cts是奇数,那么是服务端触发事件
     if ((in - cts) & 1) {
-        in->timer = (in-1)->timer = 0;
+        in->timer = (in - 1)->timer = 0;
         serverToClient(in);
         return;
     }
-    in->timer = (in+1)->timer = 0;
+    in->timer = (in + 1)->timer = 0;
     in->header_buffer = read_data(in, in->header_buffer, &in->header_buffer_len);
     if (in->header_buffer != NULL) {
         if (request_type(in->header_buffer) == HTTP_TYPE) {
@@ -150,7 +136,7 @@ void tcp_in(conn *in, conf *configure)
             conn *remote;
             remote = in + 1;
             remote->fd = create_connection(remote_host, remote_port);
-            epollEvent.events = EPOLLIN|EPOLLOUT|EPOLLET;
+            epollEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
             epollEvent.data.ptr = remote;
             epoll_ctl(epollfd, EPOLL_CTL_ADD, remote->fd, &epollEvent);
         }
@@ -160,7 +146,7 @@ void tcp_in(conn *in, conf *configure)
     return;
 }
 
-void tcp_out(conn *out)
+void tcp_out(conn * out)
 {
     conn *from;
     int write_len;
@@ -200,4 +186,3 @@ void tcp_out(conn *out)
     }
     return;
 }
-

@@ -1,6 +1,5 @@
 #include "conf.h"
 
-
 char *strncpy_(char *dest, const char *src, size_t n)
 {
     int size = sizeof(char) * (n + 1);
@@ -23,62 +22,52 @@ static char *set_var_val_lineEnd(char *content, char **var, char **val_begin, ch
     ;
     int val_len;
 
-    while (1)
-    {
+    while (1) {
         if (content == NULL)
             return NULL;
 
-        for (;*content == ' ' || *content == '\t' || *content == '\r' || *content == '\n'; content++);
+        for (; *content == ' ' || *content == '\t' || *content == '\r' || *content == '\n'; content++) ;
         if (*content == '\0')
             return NULL;
         *var = content;
         pn = strchr(content, '\n');
         p = strchr(content, '=');
-        if (p == NULL)
-        {
-            if (pn)
-            {
+        if (p == NULL) {
+            if (pn) {
                 content = pn + 1;
                 continue;
-            }
-            else
+            } else
                 return NULL;
         }
         content = p;
         //将变量以\0结束
-        for (p--; *p == ' ' || *p == '\t'; p--);
-        *(p+1) = '\0';
+        for (p--; *p == ' ' || *p == '\t'; p--) ;
+        *(p + 1) = '\0';
         //值的首地址
-        for (content++; *content == ' ' || *content == '\t'; content++);
+        for (content++; *content == ' ' || *content == '\t'; content++) ;
         if (*content == '\0')
             return NULL;
         //双引号引起来的值支持换行
-        if (*content == '"')
-        {
+        if (*content == '"') {
             *val_begin = content + 1;
             *val_end = strstr(*val_begin, "\";");
             if (*val_end != NULL)
                 break;
-        }
-        else
+        } else
             *val_begin = content;
         *val_end = strchr(content, ';');
-        if (pn && *val_end > pn)
-        {
+        if (pn && *val_end > pn) {
             content = pn + 1;
             continue;
         }
         break;
     }
 
-    if (*val_end)
-    {
+    if (*val_end) {
         **val_end = '\0';
         val_len = *val_end - *val_begin;
         lineEnd = *val_end;
-    }
-    else
-    {
+    } else {
         val_len = strlen(*val_begin);
         *val_end = lineEnd = *val_begin + val_len;
     }
@@ -95,12 +84,10 @@ static char *read_module(char *buff, const char *module_name)
 
     len = strlen(module_name);
     p = buff;
-    while (1)
-    {
+    while (1) {
         while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
             p++;
-        if (strncasecmp(p, module_name, len) == 0)
-        {
+        if (strncasecmp(p, module_name, len) == 0) {
             p += len;
             while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
                 p++;
@@ -116,68 +103,63 @@ static char *read_module(char *buff, const char *module_name)
     return strndup(p, p0 - p);
 }
 
-static void parse_global_module(char *content, conf *p)
+static void parse_global_module(char *content, conf * p)
 {
     char *var, *val_begin, *val_end, *lineEnd;
 
-    while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL)
-    {
+    while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL) {
         if (strcasecmp(var, "uid") == 0) {
             p->uid = atoi(val_begin);
         } else if (strcasecmp(var, "process") == 0) {
             p->process = atoi(val_begin);
         } else if (strcasecmp(var, "timer") == 0) {
-           p->timer = atoi(val_begin);
+            p->timer = atoi(val_begin);
         } else if (strcasecmp(var, "sslencoding") == 0) {
             p->sslencoding = atoi(val_begin);
         } else if (strcasecmp(var, "local_port") == 0) {
             p->local_port = atoi(val_begin);
         }
 
-        content = strchr(lineEnd+1, '\n');
+        content = strchr(lineEnd + 1, '\n');
     }
 }
 
-static void parse_http_module(char *content, conf *p) {
+static void parse_http_module(char *content, conf * p)
+{
     char *var, *val_begin, *val_end, *lineEnd;
     int val_begin_len;
 
-    while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL)
-    {
+    while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL) {
         if (strcasecmp(var, "http_ip") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->http_ip = (char *)malloc(val_begin_len);
             memset(p->http_ip, 0, val_begin_len);
             memcpy(p->http_ip, val_begin, val_begin_len);
-        }
-        else if (strcasecmp(var, "http_port") == 0) {
+        } else if (strcasecmp(var, "http_port") == 0) {
             p->http_port = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "http_del") == 0) {
+        } else if (strcasecmp(var, "http_del") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->http_del = (char *)malloc(val_begin_len);
             memcpy(p->http_del, val_begin, val_begin_len);
-        }
-        else if (strcasecmp(var, "http_first") == 0) {
+        } else if (strcasecmp(var, "http_first") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->http_first = (char *)malloc(val_begin_len);
             memcpy(p->http_first, val_begin, val_begin_len);
-        }
-        else if (strcasecmp(var, "strrep") ==0) {
+        } else if (strcasecmp(var, "strrep") == 0) {
             val_begin_len = strlen(val_begin) + 1;
-            
+
             p->http_strrep = (char *)malloc(val_begin_len);
             if (p->http_strrep == NULL)
                 free(p->http_strrep);
             memcpy(p->http_strrep, val_begin, val_begin_len);
-            
+
             char *p1 = strstr(val_begin, "->");
             printf("p1 %s\n", p1);
             p->http_strrep_aim = (char *)malloc(val_begin_len - strlen(p1 + 2) - 2 + 1);
             if (p->http_strrep_aim == NULL) {
                 free(p->http_strrep_aim);
             }
-            strncpy_(p->http_strrep_aim, val_begin, val_begin_len - strlen(p1 + 2) - 3);    // 实际 val_begin_len 多1
+            strncpy_(p->http_strrep_aim, val_begin, val_begin_len - strlen(p1 + 2) - 3); // 实际 val_begin_len 多1
             p->http_strrep_obj = (char *)malloc(strlen(p1 + 2) + 1);
             if (p->http_strrep_obj == NULL) {
                 free(p->http_strrep_obj);
@@ -185,18 +167,16 @@ static void parse_http_module(char *content, conf *p) {
             strncpy_(p->http_strrep_obj, p1 + 2, strlen(p1 + 2));
             p->http_strrep_aim_len = strlen(p->http_strrep_aim);
             p->http_strrep_obj_len = strlen(p->http_strrep_obj);
-        }
-        else if (strcasecmp(var, "regrep") ==0) {
+        } else if (strcasecmp(var, "regrep") == 0) {
             val_begin_len = strlen(val_begin) + 1;
-            
+
             p->http_regrep = (char *)malloc(val_begin_len);
             if (p->http_regrep == NULL)
                 free(p->http_regrep);
             memcpy(p->http_regrep, val_begin, val_begin_len);
-            
+
             char *p1 = strstr(val_begin, "->");
-            p->http_regrep_aim =
-                (char *)malloc(val_begin_len - strlen(p1 + 2) - 2 + 1);
+            p->http_regrep_aim = (char *)malloc(val_begin_len - strlen(p1 + 2) - 2 + 1);
             if (p->http_regrep_aim == NULL) {
                 free(p->http_regrep_aim);
             }
@@ -210,42 +190,38 @@ static void parse_http_module(char *content, conf *p) {
             p->http_regrep_obj_len = strlen(p->http_regrep_obj);
         }
 
-        content = strchr(lineEnd+1, '\n');
+        content = strchr(lineEnd + 1, '\n');
     }
 }
 
-static void parse_https_module(char *content, conf *p) {
+static void parse_https_module(char *content, conf * p)
+{
     char *var, *val_begin, *val_end, *lineEnd;
     int val_begin_len;
-    
-    while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL)
-    {
+
+    while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL) {
         if (strcasecmp(var, "https_ip") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->https_ip = (char *)malloc(val_begin_len);
             memcpy(p->https_ip, val_begin, val_begin_len);
-        }
-        else if (strcasecmp(var, "https_port") == 0) {
+        } else if (strcasecmp(var, "https_port") == 0) {
             p->https_port = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "https_del") == 0) {
+        } else if (strcasecmp(var, "https_del") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->https_del = (char *)malloc(val_begin_len);
             memcpy(p->https_del, val_begin, val_begin_len);
-        }
-        else if (strcasecmp(var, "https_first") == 0) {
+        } else if (strcasecmp(var, "https_first") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->https_first = (char *)malloc(val_begin_len);
             memcpy(p->https_first, val_begin, val_begin_len);
-        }
-        else if (strcasecmp(var, "strrep") ==0) {
+        } else if (strcasecmp(var, "strrep") == 0) {
             val_begin_len = strlen(val_begin) + 1;
-            
+
             p->https_strrep = (char *)malloc(val_begin_len);
             if (p->https_strrep == NULL)
                 free(p->https_strrep);
             memcpy(p->https_strrep, val_begin, val_begin_len);
-            
+
             char *p1 = strstr(val_begin, "->");
             p->https_strrep_aim = (char *)malloc(val_begin_len - strlen(p1 + 2) - 2 + 1);
             if (p->https_strrep_aim == NULL) {
@@ -259,15 +235,14 @@ static void parse_https_module(char *content, conf *p) {
             strncpy_(p->https_strrep_obj, p1 + 2, strlen(p1 + 2));
             p->https_strrep_aim_len = strlen(p->https_strrep_aim);
             p->https_strrep_obj_len = strlen(p->https_strrep_obj);
-        }
-        else if (strcasecmp(var, "regrep") ==0) {
+        } else if (strcasecmp(var, "regrep") == 0) {
             val_begin_len = strlen(val_begin) + 1;
-            
+
             p->https_regrep = (char *)malloc(val_begin_len);
             if (p->https_regrep == NULL)
                 free(p->https_regrep);
             memcpy(p->https_regrep, val_begin, val_begin_len);
-            
+
             char *p1 = strstr(val_begin, "->");
             p->https_regrep_aim = (char *)malloc(val_begin_len - strlen(p1 + 2) - 2 + 1);
             if (p->https_regrep_aim == NULL)
@@ -281,11 +256,11 @@ static void parse_https_module(char *content, conf *p) {
             p->https_regrep_obj_len = strlen(p->https_regrep_obj);
         }
 
-        content = strchr(lineEnd+1, '\n');
+        content = strchr(lineEnd + 1, '\n');
     }
 }
 
-void free_conf(conf *p)
+void free_conf(conf * p)
 {
     free(p->server_pid_file);
 
@@ -298,7 +273,7 @@ void free_conf(conf *p)
     free(p->http_regrep);
     free(p->http_regrep_aim);
     free(p->http_regrep_obj);
-    
+
     free(p->https_ip);
     free(p->https_del);
     free(p->https_first);
@@ -311,7 +286,7 @@ void free_conf(conf *p)
     return;
 }
 
-void read_conf(char *filename, conf *configure)
+void read_conf(char *filename, conf * configure)
 {
     char *buff, *global_content, *http_content, *https_content;
     FILE *file;
@@ -349,7 +324,8 @@ void read_conf(char *filename, conf *configure)
 
 }
 
-void printfconf(conf *configure) {
+void printfconf(conf * configure)
+{
     printf("%d\n", configure->uid);
     printf("%d\n", configure->process);
     printf("%d\n", configure->timer);
@@ -375,7 +351,7 @@ void printfconf(conf *configure) {
         printf("%s\n", configure->http_regrep_aim);
     if (configure->http_regrep_obj)
         printf("%s\n", configure->http_regrep_obj);
-    
+
     printf("\n");
     if (configure->https_ip)
         printf("%s\n", configure->https_ip);
@@ -397,4 +373,3 @@ void printfconf(conf *configure) {
     if (configure->https_regrep_obj)
         printf("%s\n", configure->https_regrep_obj);
 }
-

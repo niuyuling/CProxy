@@ -48,8 +48,7 @@ char *replace(char *replace_memory, int *replace_memory_len, const char *src, co
 }
 
 /* 正则表达式字符串替换，str为可用free释放的指针 */
-static char *regrep(char *str, int *str_len, const char *src, char *dest,
-                    int dest_len)
+static char *regrep(char *str, int *str_len, const char *src, char *dest, int dest_len)
 {
     if (!str || !src || !dest)
         return NULL;
@@ -75,9 +74,7 @@ static char *regrep(char *str, int *str_len, const char *src, char *dest,
             /* 替换目标字符串中的子表达式 */
             for (i = 1; i < 10 && pm[i].rm_so > -1; i++) {
                 child_num[1] = i + 48;
-                real_dest =
-                    replace(real_dest, &real_dest_len, child_num, 2,
-                            p + pm[i].rm_so, pm[i].rm_eo - pm[i].rm_so);
+                real_dest = replace(real_dest, &real_dest_len, child_num, 2, p + pm[i].rm_so, pm[i].rm_eo - pm[i].rm_so);
                 if (real_dest == NULL) {
                     regfree(&reg);
                     free(str);
@@ -93,8 +90,7 @@ static char *regrep(char *str, int *str_len, const char *src, char *dest,
             memcpy(p, real_dest, real_dest_len);
             if (match_len > real_dest_len)
                 //strcpy(p + real_dest_len, p + match_len);
-                memmove(p + real_dest_len, p + match_len,
-                        *str_len - (p + match_len - str));
+                memmove(p + real_dest_len, p + match_len, *str_len - (p + match_len - str));
             p += real_dest_len;
             *str_len -= match_len - real_dest_len;
         } else {
@@ -149,9 +145,9 @@ char *delete_head(char *head, const char *character, int string)
     if (p2 == NULL) {
         return head;
     }
-    
+
     char tmp[head_len];
-    strncpy_(tmp, head, head_len-strlen(p1)-1);
+    strncpy_(tmp, head, head_len - strlen(p1) - 1);
     strcat(tmp, p2);
     return strcpy(head, tmp);
 }
@@ -212,7 +208,7 @@ int extract_host(char *header, char *host, char *port)
 char *get_path(char *url, char *path)
 {
     if (url) {
-        char *p0 = strstr(url+7, "/");
+        char *p0 = strstr(url + 7, "/");
         if (p0)
             return strncpy_(path, p0, strlen(p0));
         else
@@ -221,37 +217,36 @@ char *get_path(char *url, char *path)
     return NULL;
 }
 
-char *request_head(conn *in, conf *configure)
+char *request_head(conn * in, conf * configure)
 {
     const char *method, *path;
     size_t method_len, path_len, num_headers;
     int minor_version;
     struct phr_header headers[32];
-    
+
     num_headers = sizeof(headers) / sizeof(headers[0]);
     phr_parse_request(in->header_buffer, strlen(in->header_buffer) - 1, &method, &method_len, &path, &path_len, &minor_version, headers, &num_headers, 0);
-    
-    char M[method_len+2];
+
+    char M[method_len + 2];
     strncpy_(M, method, method_len);
     int M_len = strlen(M);
     //printf("%s\n", M);
-    
-    char U[path_len+1];
+
+    char U[path_len + 1];
     strncpy_(U, path, path_len);
     int U_len = strlen(U);
     //printf("%s\n", U);
-    
+
     char V[9];
     sprintf(V, "HTTP/1.%.d", minor_version);
     int V_len = strlen(V);
     //printf("%s\n", V);
-    
+
     char host[path_len];
     char port[path_len];
-    char H[path_len*2];
+    char H[path_len * 2];
     extract_host(in->header_buffer, host, port);
-    
-    
+
 //printfconf(configure);
 
     if (strncmp(M, "CONNECT", 7) == 0) {
@@ -259,7 +254,7 @@ char *request_head(conn *in, conf *configure)
         char *result = NULL;
         char *incomplete_head;
         int incomplete_head_len;
-        
+
         if (configure->https_port > 0)
             remote_port = configure->https_port;
         if (configure->https_ip != NULL)
@@ -301,13 +296,12 @@ char *request_head(conn *in, conf *configure)
         if (configure->https_regrep) {
             incomplete_head = regrep(incomplete_head, &incomplete_head_len, configure->https_regrep_aim, configure->https_regrep_obj, configure->https_regrep_obj_len);
         }
-
         //printf("%s", incomplete_head);
 
         memset(in->header_buffer, 0, strlen(in->header_buffer));
         strcpy(in->header_buffer, incomplete_head);
         in->header_buffer_len = strlen(in->header_buffer);
-        
+
         free(incomplete_head);
     } else {
         char *incomplete_head;
@@ -316,8 +310,7 @@ char *request_head(conn *in, conf *configure)
         int incomplete_head_len;
         char url[U_len], uri[U_len];
         int uri_len;
-        
-        
+
         strcpy(url, U);
         get_path(url, uri);
         uri_len = strlen(uri);
@@ -364,7 +357,6 @@ char *request_head(conn *in, conf *configure)
         if (configure->http_regrep) {
             incomplete_head = regrep(incomplete_head, &incomplete_head_len, configure->http_regrep_aim, configure->http_regrep_obj, configure->http_regrep_obj_len);
         }
-
         //printf("%s", incomplete_head);
         memset(in->header_buffer, 0, strlen(in->header_buffer));
         strcpy(in->header_buffer, incomplete_head);
@@ -374,4 +366,3 @@ char *request_head(conn *in, conf *configure)
 
     return in->header_buffer;
 }
-

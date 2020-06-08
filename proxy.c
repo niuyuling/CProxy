@@ -14,8 +14,8 @@ struct epoll_event ev, events[MAX_CONNECTION + 1];
 int epollfd, server_sock;
 conn cts[MAX_CONNECTION];
 
-
-int create_connection(char *remote_host, int remote_port) {
+int create_connection(char *remote_host, int remote_port)
+{
     struct sockaddr_in server_addr;
     struct hostent *server;
     int sock;
@@ -23,27 +23,29 @@ int create_connection(char *remote_host, int remote_port) {
         perror("socket");
         return -1;
     }
-    
+
     if ((server = gethostbyname(remote_host)) == NULL) {
         perror("gethostbyname");
         errno = EFAULT;
         return -1;
     }
-    
+
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     server_addr.sin_port = htons(remote_port);
-    if (connect(sock, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
+    if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("connect");
+        close(sock);
         return -1;
     }
-    
+
     fcntl(sock, F_SETFL, O_NONBLOCK);
     return sock;
 }
 
-int create_server_socket(int port) {
+int create_server_socket(int port)
+{
     int server_sock;
     int optval = 1;
     struct sockaddr_in server_addr;
@@ -59,7 +61,7 @@ int create_server_socket(int port) {
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    if (bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) != 0) {
+    if (bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
         perror("bind");
         return -1;
     }
@@ -83,17 +85,17 @@ void accept_client()
             break;
     if (client - cts >= MAX_CONNECTION)
         return;
-    client->timer = (client+1)->timer = 0;
+    client->timer = (client + 1)->timer = 0;
     client->fd = accept(server_sock, (struct sockaddr *)&addr, &addr_len);
     if (client->fd < 0)
         return;
     fcntl(client->fd, F_SETFL, O_NONBLOCK);
-    epollEvent.events = EPOLLIN|EPOLLET;
+    epollEvent.events = EPOLLIN | EPOLLET;
     epollEvent.data.ptr = client;
     epoll_ctl(epollfd, EPOLL_CTL_ADD, client->fd, &epollEvent);
 }
 
-void start_server(conf *configure)
+void start_server(conf * configure)
 {
     int n;
     pthread_t thId;
@@ -106,7 +108,7 @@ void start_server(conf *configure)
             if (events[n].data.fd == server_sock) {
                 accept_client();
             } else {
-                if(events[n].events & EPOLLIN) {
+                if (events[n].events & EPOLLIN) {
                     tcp_in((conn *) events[n].data.ptr, configure);
                 }
                 if (events[n].events & EPOLLOUT) {
@@ -118,8 +120,7 @@ void start_server(conf *configure)
     close(epollfd);
 }
 
-int
-process_signal(int signal, char *process_name)
+int process_signal(int signal, char *process_name)
 {
     char bufer[PATH_SIZE];
     char comm[PATH_SIZE];
@@ -182,7 +183,6 @@ int get_executable_path(char *processdir, char *processname, int len)
 
 int _main(int argc, char *argv[])
 {
-    sslEncodeCode = 0;
     int opt, i, process;
     char path[PATH_SIZE] = { 0 };
     char executable_filename[PATH_SIZE] = { 0 };
@@ -192,11 +192,14 @@ int _main(int argc, char *argv[])
     conf *configure = (struct CONF *)malloc(sizeof(struct CONF));
     read_conf(inifile, configure);
 
-    timeout_minute = 0;
-    if (configure->timer > 0)
+    sslEncodeCode = 0;  // 默认SSL不转码
+    if (configure->sslencoding > 0) // 如果配置文件有sslencoding值,优先使用配置文件读取的值
+        sslEncodeCode = configure->sslencoding;
+    timeout_minute = 0; // 默认不超时
+    if (configure->timer > 0)       // 如果配置文件有值,优先使用配置文件读取的值
         timeout_minute = configure->timer;
-    process = 2;
-    if (configure->process > 0)
+    process = 2;        // 默认开启2个进程
+    if (configure->process > 0)     // 如果配置文件有值,优先使用配置文件读取的值
         process = configure->process;
 
     //char optstring[] = ":l:f:t:p:c:e:s:h?";
@@ -237,7 +240,7 @@ int _main(int argc, char *argv[])
             }
             break;
         case 't':
-            timeout_minute = (time_t)atoi(optarg);
+            timeout_minute = (time_t) atoi(optarg); // 如果指定-t,优先使用参数提供的值(输入值 > 配置文件读取的值)
             break;
         case 'p':
             process = atoi(optarg);
@@ -268,23 +271,18 @@ int _main(int argc, char *argv[])
         default:
             ;
         }
-    }
-
-    if (configure->sslencoding > 0)
-        sslEncodeCode = configure->sslencoding;
+    }  
 
     server_sock = create_server_socket(configure->local_port);
-    signal(SIGPIPE, SIG_IGN);  //忽略PIPE信号
-    
+    signal(SIGPIPE, SIG_IGN);   // 忽略PIPE信号
+
     memset(cts, 0, sizeof(cts));
-    for (i = MAX_CONNECTION; i--; )
+    for (i = MAX_CONNECTION; i--;)
         cts[i].fd = -1;
-    //为服务端的结构体分配内存
-    for (i = 1; i < MAX_CONNECTION; i += 2)
-    {
+    // 为服务端的结构体分配内存
+    for (i = 1; i < MAX_CONNECTION; i += 2) {
         cts[i].header_buffer = (char *)malloc(BUFFER_SIZE);
-        if (cts[i].header_buffer == NULL)
-        {
+        if (cts[i].header_buffer == NULL) {
             fputs("out of memory.", stderr);
             exit(1);
         }
@@ -296,8 +294,7 @@ int _main(int argc, char *argv[])
     }
 
     while (process-- > 0 && fork() == 0)
-
-    epollfd = epoll_create(MAX_CONNECTION);
+        epollfd = epoll_create(MAX_CONNECTION);
     if (epollfd == -1) {
         perror("epoll_create");
         exit(1);
@@ -311,7 +308,7 @@ int _main(int argc, char *argv[])
 
     if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1) // 设置uid
         exit(1);
-    
+
     start_server(configure);
     return 0;
 }
@@ -320,4 +317,3 @@ int main(int argc, char *argv[])
 {
     return _main(argc, argv);
 }
-

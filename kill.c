@@ -2,8 +2,7 @@
 
 static pid_t opt_ns_pid = 0;
 
-static int exact = 1, reg = 0, wait_until_dead = 1, process_group =
-    0, ignore_case = 0;
+static int exact = 1, reg = 0, wait_until_dead = 1, process_group = 0, ignore_case = 0;
 static long younger_than = 0, older_than = 0;
 
 typedef struct NAMEINFO {
@@ -151,9 +150,7 @@ static NAMEINFO *build_nameinfo(const int names, char **namelist)
     return ni;
 }
 
-static int
-load_process_name_and_age(char *comm, double *process_age_sec,
-                          const pid_t pid, int load_age)
+static int load_process_name_and_age(char *comm, double *process_age_sec, const pid_t pid, int load_age)
 {
     FILE *file;
     char *path;
@@ -187,10 +184,7 @@ load_process_name_and_age(char *comm, double *process_age_sec,
     endcomm += 2;               // skip ") "
     if (load_age) {
         unsigned long long proc_stt_jf = 0;
-        if (sscanf
-            (endcomm,
-             "%*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %Lu",
-             &proc_stt_jf) != 1) {
+        if (sscanf(endcomm, "%*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %Lu", &proc_stt_jf) != 1) {
             return -1;
         }
         *process_age_sec = process_age(proc_stt_jf);
@@ -198,9 +192,7 @@ load_process_name_and_age(char *comm, double *process_age_sec,
     return lencomm;
 }
 
-static int
-load_proc_cmdline(const pid_t pid, const char *comm, char **command,
-                  int *got_long)
+static int load_proc_cmdline(const pid_t pid, const char *comm, char **command, int *got_long)
 {
     FILE *file;
     char *path, *p, *command_buf;
@@ -306,29 +298,21 @@ static pid_t *create_pid_table(int *max_pids, int *pids)
 
 #define strcmp2(A,B,I) (I? strcasecmp((A),(B)):strcmp((A),(B)))
 #define strncmp2(A,B,L,I) (I? strncasecmp((A),(B),(L)):strncmp((A),(B),(L)))
-static int match_process_name(const char *proc_comm,
-                              const int comm_len,
-                              const char *proc_cmdline,
-                              const char *match_name,
-                              const int match_len, const int got_long)
+static int match_process_name(const char *proc_comm, const int comm_len, const char *proc_cmdline, const char *match_name, const int match_len, const int got_long)
 {
     if (comm_len == OLD_COMM_LEN - 1 && match_len >= OLD_COMM_LEN - 1) {
         if (got_long) {
-            return (0 == strncmp2(match_name, proc_cmdline, OLD_COMM_LEN - 1,
-                                  ignore_case));
+            return (0 == strncmp2(match_name, proc_cmdline, OLD_COMM_LEN - 1, ignore_case));
         } else {
-            return (0 == strncmp2(match_name, proc_comm, OLD_COMM_LEN - 1,
-                                  ignore_case));
+            return (0 == strncmp2(match_name, proc_comm, OLD_COMM_LEN - 1, ignore_case));
         }
     }
 
     if (comm_len == COMM_LEN - 1 && match_len >= COMM_LEN - 1) {
         if (got_long) {
-            return (0 == strncmp2(match_name, proc_cmdline, COMM_LEN - 1,
-                                  ignore_case));
+            return (0 == strncmp2(match_name, proc_cmdline, COMM_LEN - 1, ignore_case));
         } else {
-            return (0 == strncmp2(match_name, proc_comm, COMM_LEN - 1,
-                                  ignore_case));
+            return (0 == strncmp2(match_name, proc_comm, COMM_LEN - 1, ignore_case));
         }
     }
     if (got_long) {
@@ -383,9 +367,7 @@ int kill_all(int signal, int name_count, char **namelist, struct passwd *pwent)
             continue;
         if (opt_ns_pid && ns_ino && ns_ino != get_ns(pid_table[i], PIDNS))
             continue;
-        length =
-            load_process_name_and_age(comm, &process_age_sec, pid_table[i],
-                                      (younger_than || older_than));
+        length = load_process_name_and_age(comm, &process_age_sec, pid_table[i], (younger_than || older_than));
         if (length < 0)
             continue;
         if (younger_than && (process_age_sec > younger_than))
@@ -408,8 +390,7 @@ int kill_all(int signal, int name_count, char **namelist, struct passwd *pwent)
                     continue;
             } else {
                 if (!name_info[j].st.st_dev) {
-                    if (!match_process_name(comm, length, command, namelist[j],
-                                            name_info[j].name_length, got_long))
+                    if (!match_process_name(comm, length, command, namelist[j], name_info[j].name_length, got_long))
                         continue;
 
                 } else {
@@ -418,14 +399,11 @@ int kill_all(int signal, int name_count, char **namelist, struct passwd *pwent)
                         continue;
                     if (stat(path, &st) < 0)
                         ok = 0;
-                    else if (name_info[j].st.st_dev != st.st_dev ||
-                             name_info[j].st.st_ino != st.st_ino) {
+                    else if (name_info[j].st.st_dev != st.st_dev || name_info[j].st.st_ino != st.st_ino) {
                         size_t len = strlen(namelist[j]);
                         char *linkbuf = malloc(len + 1);
 
-                        if (!linkbuf ||
-                            readlink(path, linkbuf, len + 1) != (ssize_t) len ||
-                            memcmp(namelist[j], linkbuf, len))
+                        if (!linkbuf || readlink(path, linkbuf, len + 1) != (ssize_t) len || memcmp(namelist[j], linkbuf, len))
                             ok = 0;
                         free(linkbuf);
                     }
@@ -465,16 +443,12 @@ int kill_all(int signal, int name_count, char **namelist, struct passwd *pwent)
         free_regexp_list(reglist, name_count);
     free(pgids);
     if (name_count)
-        error =
-            found ==
-            ((1UL << (name_count - 1)) | ((1UL << (name_count - 1)) - 1)) ? 0 :
-            1;
+        error = found == ((1UL << (name_count - 1)) | ((1UL << (name_count - 1)) - 1)) ? 0 : 1;
     else
         error = pids_killed ? 0 : 1;
     while (pids_killed && wait_until_dead) {
         for (i = 0; i < pids_killed;) {
-            if (kill(process_group ? -pid_killed[i] : pid_killed[i], 0) < 0 &&
-                errno == ESRCH) {
+            if (kill(process_group ? -pid_killed[i] : pid_killed[i], 0) < 0 && errno == ESRCH) {
                 pid_killed[i] = pid_killed[--pids_killed];
                 continue;
             }
