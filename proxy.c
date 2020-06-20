@@ -5,6 +5,7 @@
 #include "conf.h"
 #include "kill.h"
 #include "help.h"
+#include "httpdns.h"
 
 #define SERVER_STOP 1
 #define SERVER_RELOAD 2
@@ -95,12 +96,36 @@ void accept_client()
     epoll_ctl(epollfd, EPOLL_CTL_ADD, client->fd, &epollEvent);
 }
 
-void start_server(conf * configure)
+void *http_proxy_loop(void *p)
+{
+    conf *configure = (conf *) p;
+    int n;
+
+    while (1) {
+        n = epoll_wait(epollfd, events, MAX_CONNECTION, -1);
+        while (n-- > 0) {
+            if (events[n].data.fd == server_sock) {
+                accept_client();
+            } else {
+                if (events[n].events & EPOLLIN) {
+                    tcp_in((conn *) events[n].data.ptr, configure);
+                }
+                if (events[n].events & EPOLLOUT) {
+                    tcp_out((conn *) events[n].data.ptr);
+                }
+            }
+        }
+    }
+    close(epollfd);
+    return NULL;
+}
+
+void *start_server(conf * configure)
 {
     int n;
-    pthread_t thId;
+    pthread_t thread_id;
     if (timeout_minute)
-        pthread_create(&thId, NULL, &close_timeout_connectionLoop, NULL);
+        pthread_create(&thread_id, NULL, &close_timeout_connectionLoop, NULL);
 
     while (1) {
         n = epoll_wait(epollfd, events, MAX_CONNECTION, -1);
@@ -152,18 +177,28 @@ int process_signal(int signal, char *process_name)
         }
 
     }
-    n -= 2;                     // 去除最后一个搜索时的本身进程
-    for (; n >= 0; n--) {
-        if (signal == SERVER_STATUS)
+    closedir(dir);
+
+    if (signal == SERVER_STATUS) { // 状态
+        n -= 2;                 // 去除最后一个搜索时的本身进程
+        for (; n >= 0; n--) {
             printf("\t%d\n", num[n]);
+        }
     }
-    if (signal == SERVER_STOP || signal == SERVER_RELOAD) {
-        //kill(num[n], SIGTERM);
+    if (signal == SERVER_STOP) { // 关闭
         struct passwd *pwent = NULL;
         pwent = getpwnam("root");
         return kill_all(15, 1, &process_name, pwent);
     }
-    closedir(dir);
+    if (signal == SERVER_RELOAD) { // 重启
+        n -= 2;
+        for (; n >= 0; n--) {
+            //printf("\t%d\n", num[n]);
+            //printf("kill 返回 %d\n", kill(num[n], SIGTERM));
+            kill(num[n], SIGTERM);
+        }
+    }
+
     return 0;
 }
 
@@ -181,9 +216,19 @@ int get_executable_path(char *processdir, char *processname, int len)
     return (int)(filename - processdir);
 }
 
-int _main(int argc, char *argv[])
+void server_ini()
 {
-    int opt, i, process;
+    signal(SIGPIPE, SIG_IGN);   // 忽略PIPE信号
+    if (daemon(1, 1)) {
+        perror("daemon");
+        return;
+    }
+    //while (process-- > 1 && fork() == 0);
+}
+
+void _main(int argc, char *argv[])
+{
+    int opt, i;
     char path[PATH_SIZE] = { 0 };
     char executable_filename[PATH_SIZE] = { 0 };
     (void)get_executable_path(path, executable_filename, sizeof(path));
@@ -192,14 +237,14 @@ int _main(int argc, char *argv[])
     conf *configure = (struct CONF *)malloc(sizeof(struct CONF));
     read_conf(inifile, configure);
 
-    sslEncodeCode = 0;  // 默认SSL不转码
+    sslEncodeCode = 0;          // 默认SSL不转码
     if (configure->sslencoding > 0) // 如果配置文件有sslencoding值,优先使用配置文件读取的值
         sslEncodeCode = configure->sslencoding;
-    timeout_minute = 0; // 默认不超时
-    if (configure->timer > 0)       // 如果配置文件有值,优先使用配置文件读取的值
+    timeout_minute = 0;         // 默认不超时
+    if (configure->timer > 0)   // 如果配置文件有值,优先使用配置文件读取的值
         timeout_minute = configure->timer;
-    process = 2;        // 默认开启2个进程
-    if (configure->process > 0)     // 如果配置文件有值,优先使用配置文件读取的值
+    process = 2;                // 默认开启2个进程
+    if (configure->process > 0) // 如果配置文件有值,优先使用配置文件读取的值
         process = configure->process;
 
     //char optstring[] = ":l:f:t:p:c:e:s:h?";
@@ -258,8 +303,9 @@ int _main(int argc, char *argv[])
                 free_conf(configure);
                 exit(process_signal(SERVER_STOP, executable_filename));
             }
-            if (strcasecmp(optarg, "restart") == 0 || strcasecmp(optarg, "reload") == 0)
+            if (strcasecmp(optarg, "restart") == 0 || strcasecmp(optarg, "reload") == 0) {
                 process_signal(SERVER_RELOAD, executable_filename);
+            }
             if (strcasecmp(optarg, "status") == 0)
                 exit(process_signal(SERVER_STATUS, executable_filename));
             break;
@@ -271,11 +317,9 @@ int _main(int argc, char *argv[])
         default:
             ;
         }
-    }  
+    }
 
-    server_sock = create_server_socket(configure->local_port);
-    signal(SIGPIPE, SIG_IGN);   // 忽略PIPE信号
-
+    httpdns_initialize();       // 初始化http_dns
     memset(cts, 0, sizeof(cts));
     for (i = MAX_CONNECTION; i--;)
         cts[i].fd = -1;
@@ -287,14 +331,8 @@ int _main(int argc, char *argv[])
             exit(1);
         }
     }
-
-    if (daemon(1, 1)) {
-        perror("daemon");
-        return 1;
-    }
-
-    while (process-- > 0 && fork() == 0)
-        epollfd = epoll_create(MAX_CONNECTION);
+    server_sock = create_server_socket(configure->local_port);
+    epollfd = epoll_create(MAX_CONNECTION);
     if (epollfd == -1) {
         perror("epoll_create");
         exit(1);
@@ -305,15 +343,32 @@ int _main(int argc, char *argv[])
     if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock, &event)) {
         exit(1);
     }
-
     if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1) // 设置uid
         exit(1);
 
-    start_server(configure);
-    return 0;
+    server_ini();               // 初始化http_proxy
+    pthread_t thread_id;
+    sigset_t signal_mask;
+    sigemptyset(&signal_mask);
+    sigaddset(&signal_mask, SIGPIPE); // 忽略PIPE信号
+    if (pthread_sigmask(SIG_BLOCK, &signal_mask, NULL) != 0) {
+        printf("block sigpipe error\n");
+    }
+    pthread_detach(thread_id);
+    if (timeout_minute)
+        pthread_create(&thread_id, NULL, &close_timeout_connectionLoop, NULL);
+    if (pthread_create(&thread_id, NULL, &http_proxy_loop, (void *)configure) != 0)
+        perror("pthread_create");
+
+    if (pthread_create(&thread_id, NULL, &httpdns_start_server, NULL) != 0)
+        perror("pthread_create");
+
+    pthread_join(thread_id, NULL);
+    pthread_exit(NULL);
+
 }
 
 int main(int argc, char *argv[])
 {
-    return _main(argc, argv);
+    _main(argc, argv);
 }

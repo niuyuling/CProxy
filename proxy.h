@@ -26,6 +26,7 @@
 
 int local_port;
 char local_host[128];
+int process;
 
 extern int epollfd;
 extern struct epoll_event ev, events[MAX_CONNECTION + 1];

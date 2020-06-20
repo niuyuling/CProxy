@@ -50,4 +50,6 @@ char *strncpy_(char *dest, const char *src, size_t n);
 void read_conf(char *file, conf * p);
 void free_conf(conf * p);
 
+void printfconf(conf * configure);
+
 #endif

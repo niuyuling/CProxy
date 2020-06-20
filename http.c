@@ -4,7 +4,7 @@
 int sslEncodeCode;
 
 /* 对数据进行编码 */
-static void dataEncode(char *data, int data_len)
+void dataEncode(char *data, int data_len)
 {
     if (sslEncodeCode)
         while (data_len-- > 0)

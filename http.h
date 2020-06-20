@@ -10,6 +10,7 @@
 int remote_port;
 char remote_host[128];
 
+
 extern int sslEncodeCode;
 
 typedef struct conn_t {
@@ -25,5 +26,6 @@ extern void clienttoserver(conn * in);
 extern void close_connection(conn * conn);
 
 extern char *request_head(conn * in, conf * configure);
+void dataEncode(char *data, int data_len);
 
 #endif
