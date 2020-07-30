@@ -1,5 +1,6 @@
-#include "proxy.h"
-#include "http.h"
+#include "timeout.h"
+#include "main.h"
+#include "http_proxy.h"
 
 int timeout_minute;
 

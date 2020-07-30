@@ -2,14 +2,13 @@
 #define HTTP_H
 
 #include "conf.h"
-#include "proxy.h"
+#include "main.h"
 
 #define HTTP_TYPE 0
 #define OTHER_TYPE 1
 
 int remote_port;
 char remote_host[128];
-
 
 extern int sslEncodeCode;
 

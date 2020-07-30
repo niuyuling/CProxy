@@ -1,6 +1,6 @@
-#include "proxy.h"
-#include "http.h"
-#include "request.h"
+#include "main.h"
+#include "http_proxy.h"
+#include "http_request.h"
 #include "timeout.h"
 #include "conf.h"
 #include "kill.h"
@@ -185,18 +185,10 @@ int process_signal(int signal, char *process_name)
             printf("\t%d\n", num[n]);
         }
     }
-    if (signal == SERVER_STOP) { // 关闭
+    if (signal == SERVER_STOP || signal == SERVER_RELOAD) { // 关闭
         struct passwd *pwent = NULL;
         pwent = getpwnam("root");
         return kill_all(15, 1, &process_name, pwent);
-    }
-    if (signal == SERVER_RELOAD) { // 重启
-        n -= 2;
-        for (; n >= 0; n--) {
-            //printf("\t%d\n", num[n]);
-            //printf("kill 返回 %d\n", kill(num[n], SIGTERM));
-            kill(num[n], SIGTERM);
-        }
     }
 
     return 0;
@@ -241,8 +233,8 @@ void _main(int argc, char *argv[])
     if (configure->sslencoding > 0) // 如果配置文件有sslencoding值,优先使用配置文件读取的值
         sslEncodeCode = configure->sslencoding;
     timeout_minute = 0;         // 默认不超时
-    if (configure->timer > 0)   // 如果配置文件有值,优先使用配置文件读取的值
-        timeout_minute = configure->timer;
+    if (configure->timeout > 0) // 如果配置文件有值,优先使用配置文件读取的值
+        timeout_minute = configure->timeout;
     process = 2;                // 默认开启2个进程
     if (configure->process > 0) // 如果配置文件有值,优先使用配置文件读取的值
         process = configure->process;
@@ -319,7 +311,7 @@ void _main(int argc, char *argv[])
         }
     }
 
-    httpdns_initialize();       // 初始化http_dns
+    httpdns_initialize(configure);       // 初始化http_dns
     memset(cts, 0, sizeof(cts));
     for (i = MAX_CONNECTION; i--;)
         cts[i].fd = -1;
@@ -331,7 +323,7 @@ void _main(int argc, char *argv[])
             exit(1);
         }
     }
-    server_sock = create_server_socket(configure->local_port);
+    server_sock = create_server_socket(configure->tcp_listen);
     epollfd = epoll_create(MAX_CONNECTION);
     if (epollfd == -1) {
         perror("epoll_create");
@@ -347,7 +339,7 @@ void _main(int argc, char *argv[])
         exit(1);
 
     server_ini();               // 初始化http_proxy
-    pthread_t thread_id;
+    pthread_t thread_id = 0;
     sigset_t signal_mask;
     sigemptyset(&signal_mask);
     sigaddset(&signal_mask, SIGPIPE); // 忽略PIPE信号
@@ -359,13 +351,13 @@ void _main(int argc, char *argv[])
         pthread_create(&thread_id, NULL, &close_timeout_connectionLoop, NULL);
     if (pthread_create(&thread_id, NULL, &http_proxy_loop, (void *)configure) != 0)
         perror("pthread_create");
-
-    if (pthread_create(&thread_id, NULL, &httpdns_start_server, NULL) != 0)
+    if (pthread_create(&thread_id, NULL, &httpdns_loop, (void *)configure) != 0)
         perror("pthread_create");
 
     pthread_join(thread_id, NULL);
     pthread_exit(NULL);
 
+    return ;
 }
 
 int main(int argc, char *argv[])

@@ -12,10 +12,11 @@ typedef struct CONF {
     // server module
     int uid;
     int process;
-    int timer;
+    int timeout;
     int sslencoding;
     //int server_port;
-    int local_port;
+    int tcp_listen;
+    int dns_listen;
     char *server_pid_file;
     int server_pid_file_len;    // length
 
@@ -44,6 +45,13 @@ typedef struct CONF {
 
     char *https_regrep_aim, *https_regrep_obj;
     int https_regrep_aim_len, https_regrep_obj_len;
+    
+        
+    // http dns_listen
+    char *addr;
+    char *http_req;
+    int http_req_len;
+    int encode;
 } conf;
 
 char *strncpy_(char *dest, const char *src, size_t n);

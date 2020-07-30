@@ -1,450 +1,503 @@
 #include "httpdns.h"
+#include "http_request.h"
 
-int encodeCode=0;
-/* hosts变量 */
-char *hosts_path = NULL;
-FILE *hostsfp = NULL;
-struct dns_hosts *hosts, *last_hosts = NULL;
+char http_rsp[HTTP_RSP_SIZE + 1];
+struct sockaddr_in dst_addr;
+char *host_value;
+int dnsListenFd = -1, dns_efd;
+unsigned int host_value_len;
+static int8_t encodeCode = 0;
+/* 缓存变量 */
+FILE *cfp = NULL;
+char *cachePath = NULL;
+struct dns_cache *cache, *cache_temp;
+socklen_t addr_len = sizeof(dst_addr);
+unsigned int cache_using, cacheLimit;
 
-/* encode domain and ipAddress */
-static void dataEncode(unsigned char *data, int data_len)
+
+int read_cache_file()
 {
-    while (data_len-- > 0)
-        data[data_len] ^= encodeCode;
-}
+    char *buff, *answer, *question;
+    long file_size;
 
-int read_hosts_file(char *path)
-{
-    char *ip_begin, *ip_end, *host_begin, *host_end, *buff, *next_line;
-    int file_size, i;
-
-    hosts = last_hosts = NULL;
-    if ((hostsfp = fopen(path, "r")) == NULL) {
-        fputs("error hosts file path", stderr);
-        return 1;
+    cache = cache_temp = NULL;
+    cache_using = 0;
+    if ((cfp = fopen(cachePath, "rb+")) == NULL) {
+        //保持文件打开状态，防止切换uid后权限不足导致无法写入文件
+        cfp = fopen(cachePath, "wb");
+        return cfp == NULL ? 1 : 0;
     }
     //读取文件内容
-    fseek(hostsfp, 0, SEEK_END);
-    file_size = ftell(hostsfp);
-    //文件没有内容则不用读取
-    if (file_size == 0)
-        return 0;
-    if ((buff = (char *)alloca(file_size + 1)) == NULL) {
-        fclose(hostsfp);
-        fputs("out of memory", stderr);
+    fseek(cfp, 0, SEEK_END);
+    file_size = ftell(cfp);
+    if ((buff = (char *)alloca(file_size)) == NULL) {
+        fclose(cfp);
         return 1;
     }
-    rewind(hostsfp);
-    fread(buff, file_size, 1, hostsfp);
-    *(buff + file_size) = '\0';
-    fclose(hostsfp);
+    rewind(cfp);
+    fread(buff, file_size, 1, cfp);
 
-    struct dns_hosts *h = NULL;
-    for (ip_begin = buff; ip_begin; ip_begin = next_line) {
-        next_line = strchr(ip_begin, '\n');
-        if (next_line != NULL)
-            *next_line++ = '\0';
-        while (*ip_begin == '\t' || *ip_begin == ' ' || *ip_begin == '\r')
-            if (*ip_begin++ == '\0')
-                continue;
-        for (i = 0, ip_end = ip_begin; *ip_end != ' ' && *ip_end != '\t' && *ip_end != '\r' && *ip_end != '\0'; ip_end++) {
-            if (*ip_end == '.')
-                i++;
-            else if (*ip_end == '\0')
-                continue;
-        }
-        if (i != 3)
-            continue;
-        for (host_begin = ip_end; *host_begin == '\t' || *host_begin == ' ' || *host_begin == '\r';) {
-            if (*host_begin++ == '\0')
-                continue;
-        }
-        for (host_end = host_begin; *host_end != ' ' && *host_end != '\t' && *host_end != '\r' && *host_end != '\n' && *host_end != '\0'; host_end++) ;
-        if (h) {
-            h->next = (struct dns_hosts *)malloc(sizeof(struct dns_hosts));
-            if (h->next == NULL)
-                return 1;
-            h = h->next;
-        } else {
-            hosts = h = (struct dns_hosts *)malloc(sizeof(struct dns_hosts));
-            if (hosts == NULL) {
-                fputs("out of memory", stderr);
-                return 1;
+    //读取缓存，一组缓存的内容为[ipDomain\0]，其中ip占5字节
+    for (answer = buff; answer - buff < file_size; answer = question + cache->question_len + 2) {
+        cache_temp = (struct dns_cache *)malloc(sizeof(*cache));
+        if (cache_temp == NULL)
+            return 1;
+        cache_temp->next = cache;
+        cache = cache_temp;
+        cache_using++;
+        cache->answer = strndup(answer, 5);
+        question = answer + 5;
+        cache->question = strdup(question);
+        if (cache->question == NULL || cache->answer == NULL)
+            return 1;
+        cache->question_len = strlen(question) - 1;
+    }
+    /* 删除重复记录 */
+    struct dns_cache *before, *after;
+    for (; cache_temp; cache_temp = cache_temp->next) {
+        for (before = cache_temp; before && (after = before->next) != NULL; before = before->next) {
+            if (strcmp(after->question, cache_temp->question) == 0) {
+                before->next = after->next;
+                free(after->question);
+                free(after->answer);
+                free(after);
+                cache_using--;
             }
         }
-        h->next = NULL;
-        h->ip = strndup(ip_begin, ip_end - ip_begin);
-        if (*(host_end - 1) == '.')
-            host_end--;
-        h->host = strndup(host_begin, host_end - host_begin);
-        if (h->ip == NULL || h->host == NULL) {
-            fputs("out of memory", stderr);
-            return 1;
-        }
-
     }
 
-    last_hosts = h;
+    fclose(cfp);
+    cfp = fopen(cachePath, "wb");
     return 0;
 }
 
-char *hosts_lookup(char *host)
+void write_dns_cache()
 {
-    struct dns_hosts *h;
+    while (cache) {
+        fputs(cache->answer, cfp);
+        fputs(cache->question, cfp);
+        fputc('\0', cfp);
+        cache = cache->next;
+    }
 
-    h = hosts;
-    while (h) {
-        if (strcmp(h->host, host) == 0)
-            return h->ip;
-        h = h->next;
+    exit(0);
+}
+
+char *cache_lookup(char *question, dns_t * dns)
+{
+    struct dns_cache *c;
+
+    for (c = cache; c; c = c->next) {
+        if (strcmp(c->question, question) == 0) {
+            dns->host_len = c->question_len;
+            dns->query_type = 1;
+            return c->answer;
+        }
     }
 
     return NULL;
 }
 
-void close_client(dns_t * dns)
+void cache_record(dns_t * dns)
 {
-    close(dns->fd);
-    if (dns->http_rsp_len != sizeof(ERROR_MSG) - 1) //ERROR_MSG not free()
-        free(dns->http_rsp);
-    dns->http_rsp = NULL;
-    dns->sent_len = dns->dns_req_len = 0;
-    dns->fd = -1;
-}
-
-void build_http_rsp(dns_t * dns, char *ips)
-{
-    int ips_len = strlen(ips);
-
-    if (encodeCode)
-        dataEncode((unsigned char *)ips, ips_len);
-    dns->http_rsp_len = sizeof(SUCCESS_HEADER) - 1 + ips_len;
-    dns->http_rsp = (char *)malloc(dns->http_rsp_len + 1);
-    if (dns->http_rsp == NULL)
+    cache_temp = (struct dns_cache *)malloc(sizeof(*cache));
+    if (cache_temp == NULL)
         return;
-    strcpy(dns->http_rsp, SUCCESS_HEADER);
-    memcpy(dns->http_rsp + sizeof(SUCCESS_HEADER) - 1, ips, ips_len);
-    dns->sent_len = 0;
-}
-
-void response_client(dns_t * out)
-{
-    int write_len = write(out->fd, out->http_rsp + out->sent_len, out->http_rsp_len - out->sent_len);
-    if (write_len == out->http_rsp_len - out->sent_len || write_len == -1)
-        close_client(out);
-    else
-        out->sent_len += write_len;
-}
-
-void build_dns_req(dns_t * dns, char *domain, int domain_size)
-{
-    char *p, *_p;
-
-    p = dns->dns_req + 12;
-    memcpy(p + 1, domain, domain_size + 1); //copy '\0'
-    while ((_p = strchr(p + 1, '.')) != NULL) {
-        *p = _p - p - 1;
-        p = _p;
+    cache_temp->question = strdup(dns->dns_req + 12);
+    if (cache_temp->question == NULL) {
+        free(cache_temp);
+        return;
     }
-    *p = strlen(p + 1);
-    p = dns->dns_req + 14 + domain_size;
-    *p++ = 0;
-    *p++ = 1;
-    *p++ = 0;
-    *p++ = 1;
-    dns->dns_req_len = p - dns->dns_req;
+    cache_temp->next = cache;
+    cache = cache_temp;
+    cache->question_len = dns->host_len;
+    cache->answer = dns->reply;
+    if (cacheLimit) {
+        //到达缓存记录条目限制则释放前一半缓存
+        if (cache_using >= cacheLimit) {
+            struct dns_cache *free_c;
+            int i;
+            for (i = cache_using = cacheLimit >> 1; i--; cache_temp = cache_temp->next) ;
+            for (free_c = cache_temp->next, cache_temp->next = NULL; free_c; free_c = cache_temp) {
+                cache_temp = free_c->next;
+                free(free_c);
+            }
+        }
+        cache_using++;
+    }
 }
 
-int send_dns_req(char *dns_req, int req_len)
+int respond_client(dns_t * dns)
+{
+    int write_len = sendto(dnsListenFd, dns->dns_req, dns->dns_rsp_len, 0, (struct sockaddr *)&dns->src_addr, sizeof(struct sockaddr_in));
+    if (write_len == dns->dns_rsp_len) {
+        dns->query_type = 0;
+        return 0;
+    } else if (write_len == -1)
+        return -1;
+    else {
+        dns->dns_rsp_len -= write_len;
+        memcpy(dns->dns_req, dns->dns_req + write_len, dns->dns_rsp_len);
+        return 1;
+    }
+}
+
+void respond_clients()
+{
+    int i;
+    for (i = 0; i < DNS_MAX_CONNECTION; i++) {
+        if (dns_list[i].wait_response_client) {
+            if (respond_client(&dns_list[i]) == 1)
+                return;
+            else
+                dns_list[i].wait_response_client = 0;
+        }
+    }
+    ev.events = EPOLLIN;
+    ev.data.fd = dnsListenFd;
+    epoll_ctl(dns_efd, EPOLL_CTL_MOD, dnsListenFd, &ev);
+}
+
+/* 分析DNS请求 */
+int parse_dns_request(char *dns_req, dns_t * dns)
+{
+    dns_req += 13;              //跳到域名部分
+    dns->host_len = strlen(dns_req);
+    //判断请求类型
+    switch ((dns->query_type = *(dns_req + 2 + dns->host_len))) {
+        //case 28:    //查询ipv6地址
+        //dns->query_type = 1; //httpDNS不支持查询ipv6，所以改成ipv4
+
+    case 1:                    //查询ipv4地址
+        dns->host = strdup(dns_req);
+        if (dns->host == NULL)
+            return 1;
+        int len;
+        for (len = *(--dns_req); dns_req[len + 1] != 0; len += dns_req[len]) {
+            //防止数组越界
+            if (len > dns->host_len) {
+                free(dns->host);
+                return 1;
+            }
+            dns->host[len++] = '.';
+        }
+        //printf("dns->host: %s\n", dns->host);
+        return 0;
+
+    default:
+        dns->host = NULL;
+        return 1;
+    }
+}
+
+/* 建立DNS回应 */
+int build_dns_response(dns_t * dns)
+{
+    char *p;
+
+    //18: 查询资源的前(12字节)后(6字节)部分
+    dns->dns_rsp_len = 18 + dns->host_len + (dns->reply ? 16 : 0);
+    if (dns->dns_rsp_len > DATA_SIZE) {
+        dns->query_type = 0;
+        return 1;               //超出缓冲大小
+    }
+    /* 问题数 */
+    dns->dns_req[4] = 0;
+    dns->dns_req[5] = 1;
+    /* 资源记录数 */
+    dns->dns_req[6] = 0;
+    dns->dns_req[7] = 0;
+    /* 授权资源记录数 */
+    dns->dns_req[8] = 0;
+    dns->dns_req[9] = 0;
+    /* 额外资源记录数 */
+    dns->dns_req[10] = 0;
+    dns->dns_req[11] = 0;
+    /* 如果有回应内容(资源记录) */
+    if (dns->reply) {
+        p = dns->dns_req + 18 + dns->host_len;
+        /* 资源记录数+1 */
+        dns->dns_req[7]++;
+        /* 成功标志 */
+        dns->dns_req[2] = (char)133;
+        dns->dns_req[3] = (char)128;
+        /* 指向主机域名 */
+        p[0] = (char)192;
+        p[1] = 12;
+        /* 回应类型 */
+        p[2] = 0;
+        p[3] = dns->query_type;
+        /* 区域类别 */
+        p[4] = 0;
+        p[5] = 1;
+        /* 生存时间 (1 ora) */
+        p[6] = 0;
+        p[7] = 0;
+        p[8] = 14;
+        p[9] = 16;
+        /* 回应长度 */
+        p[10] = 0;
+        p[11] = 4;              //reply中包含回应长度
+        strcpy(p + 12, dns->reply);
+    } else {
+        /* 失败标志 */
+        dns->dns_req[2] = (char)129;
+        dns->dns_req[3] = (char)130;
+    }
+    if (respond_client(dns) == 1) {
+        dns->wait_response_client = 1;
+        ev.events = EPOLLIN | EPOLLOUT;
+        ev.data.fd = dnsListenFd;
+        epoll_ctl(dns_efd, EPOLL_CTL_MOD, dnsListenFd, &ev);
+    }
+
+    return 0;
+}
+
+void http_out(dns_t * out)
 {
     int write_len;
 
-    write_len = write(dstFd, dns_req, req_len);
-    if (write_len == req_len)
-        return 0;
-    return write_len;
-}
-
-void query_dns()
-{
-    dns_t *dns;
-    int i, ret;
-
-    for (i = MAX_FD - 2, dns = &dns_list[MAX_FD - 3]; i--; dns--) {
-        if (dns->http_rsp == NULL && dns->dns_req_len != dns->sent_len) {
-            ret = send_dns_req(dns->dns_req + dns->sent_len, dns->dns_req_len - dns->sent_len);
-            if (ret == 0) {
-                dns->sent_len = dns->dns_req_len;
-            } else if (ret > -1) {
-                dns->sent_len += ret;
-                return;
-            } else {
-                close_client(dns);
-                break;
-            }
-        }
-    }
-    ev.events = EPOLLIN | EPOLLET;
-    ev.data.fd = dstFd;
-    epoll_ctl(eFd, EPOLL_CTL_MOD, dstFd, &ev);
-}
-
-void recv_dns_rsp()
-{
-    static char rsp_data[BUFF_SIZE + 1], *p, *ips, *ips_save;
-    unsigned char *_p;
-    dns_t *dns;
-    int len, ips_len;
-    int16_t flag;
-
-    len = read(dstFd, rsp_data, BUFF_SIZE);
-    if (len < 2)
-        return;
-    memcpy(&flag, rsp_data, sizeof(int16_t));
-    if (flag > MAX_FD - 3)
-        return;
-    dns = dns_list + flag;
-    dns->sent_len = 0;
-    dns->http_rsp = ERROR_MSG;
-    dns->http_rsp_len = sizeof(ERROR_MSG) - 1;
-    if (dns->dns_req_len + 12 > len || (unsigned char)rsp_data[3] != 128 /*(signed char) max is 127 */ )
-        goto modEvToOut;
-    rsp_data[len] = '\0';
-    /* get ips */
-    p = rsp_data + dns->dns_req_len + 11;
-    ips_len = 0;
-    ips = NULL;
-    while (p - rsp_data + 4 <= len) {
-        //type
-        if (*(p - 8) != 1) {
-            p += *p + 12;
-            continue;
-        }
-        ips_save = ips;
-        ips = (char *)realloc(ips, ips_len + 16);
-        if (ips == NULL) {
-            ips = ips_save;
-            break;
-        }
-        _p = (unsigned char *)p + 1;
-        ips_len += sprintf(ips + ips_len, "%d.%d.%d.%d", _p[0], _p[1], _p[2], _p[3]);
-        p += 16;                //next address
-        ips[ips_len++] = ';';
-    }
-    if (ips) {
-        ips[ips_len - 1] = '\0';
-        //printf("ips %s\n", ips);
-        build_http_rsp(dns, ips);
-        free(ips);
-        if (dns->http_rsp) {
-            response_client(dns);
-            if (dns->http_rsp == NULL) {
-                dns->http_rsp = ERROR_MSG;
-                dns->http_rsp_len = sizeof(ERROR_MSG) - 1;
-            }
-        }
-    }
-modEvToOut:
-    ev.data.ptr = dns;
-    ev.events = EPOLLOUT | EPOLLET;
-    epoll_ctl(eFd, EPOLL_CTL_MOD, dns->fd, &ev);
-}
-
-void read_client(dns_t * in)
-{
-    static char httpReq[BUFF_SIZE + 1];
-    int domain_size, httpReq_len;
-    char *domain_begin, *domain_end, *domain = NULL, *ips;
-
-    httpReq_len = read(in->fd, httpReq, BUFF_SIZE);
-    //必须大于5，否则不处理
-    if (httpReq_len < 6) {
-        close_client(in);
-        return;
-    }
-    httpReq[httpReq_len] = '\0';
-    in->http_rsp = ERROR_MSG;
-    in->http_rsp_len = sizeof(ERROR_MSG) - 1;
-    if ((domain_begin = strstr(httpReq, "?dn=")))
-        domain_begin += 4;
-    else if ((domain_begin = strstr(httpReq, "?host=")))
-        domain_begin += 6;
-    else
-        goto response_client;
-
-    domain_end = strchr(domain_begin, ' ');
-    if (domain_end == NULL)
-        goto response_client;
-    if (*(domain_end - 1) == '.')
-        domain_size = domain_end - domain_begin - 1;
-    else
-        domain_size = domain_end - domain_begin;
-    domain = strndup(domain_begin, domain_size);
-    if (encodeCode)
-        dataEncode((unsigned char *)domain, domain_size);
-    if (domain == NULL || domain_size <= 0)
-        goto response_client;
-    if (hostsfp && (ips = hosts_lookup(domain)) != NULL) {
-        free(domain);
-        build_http_rsp(in, ips);
-        if (in->http_rsp == NULL) {
-            in->http_rsp = ERROR_MSG;
-            in->http_rsp_len = sizeof(ERROR_MSG) - 1;
-        }
+    //puts("writing");
+    //printf("%s\n", out->http_request);
+    write_len = write(out->fd, out->http_request, out->http_request_len);
+    if (write_len == out->http_request_len) {
+        //puts("write success");
+        free(out->http_request);
+        ev.events = EPOLLIN | EPOLLET;
+        ev.data.ptr = out;
+        epoll_ctl(dns_efd, EPOLL_CTL_MOD, out->fd, &ev);
+    } else if (write_len > 0) {
+        //puts("write a little");
+        out->http_request_len -= write_len;
+        memcpy(out->http_request, out->http_request + write_len, out->http_request_len);
     } else {
-        build_dns_req(in, domain, domain_size);
-        free(domain);
-        int ret = send_dns_req(in->dns_req, in->dns_req_len);
-        switch (ret) {
-        case 0:
-            in->sent_len = in->dns_req_len;
-            ev.events = EPOLLIN;
-            break;
+        //puts("write error");
+        free(out->http_request);
+        epoll_ctl(dns_efd, EPOLL_CTL_DEL, out->fd, NULL);
+        close(out->fd);
+        out->query_type = 0;
+    }
+}
 
-        case -1:
-            close_client(in);
+void http_in(dns_t * in)
+{
+    char *ip_ptr, *p;
+    int len, i;
+
+    len = read(in->fd, http_rsp, HTTP_RSP_SIZE);
+    if (len <= 0) {
+        in->query_type = 0;
+        epoll_ctl(dns_efd, EPOLL_CTL_DEL, in->fd, NULL);
+        close(in->fd);
+        return;
+    }
+    if (encodeCode)
+        dataEncode(http_rsp, len);
+    http_rsp[len] = '\0';
+    //printf("[%s]\n", http_rsp);
+    p = strstr(http_rsp, "\n\r");
+    if (p) {
+        //部分代理服务器使用长连接，第二次读取数据才读到域名的IP
+        if (p + 3 - http_rsp >= len)
             return;
-
-        default:
-            in->sent_len += ret;
-            ev.events = EPOLLIN | EPOLLOUT;
-            break;
+        p += 3;
+    } else
+        p = http_rsp;
+    epoll_ctl(dns_efd, EPOLL_CTL_DEL, in->fd, NULL);
+    close(in->fd);
+    in->reply = (char *)malloc(5);
+    if (in->reply == NULL)
+        goto error;
+    do {
+        if (*p == '\n')
+            p++;
+        /* 匹配IP */
+        if (*p > 57 || *p < 49)
+            continue;
+        for (i = 0, ip_ptr = p, p = strchr(ip_ptr, '.');; ip_ptr = p + 1, p = strchr(ip_ptr, '.')) {
+            if (i < 3) {
+                if (p == NULL)
+                    goto error;
+                //查找下一行
+                if (p - ip_ptr > 3)
+                    break;
+                in->reply[i++] = atoi(ip_ptr);
+            } else {
+                in->reply[3] = atoi(ip_ptr);
+                in->reply[4] = 0;
+                build_dns_response(in);
+                cfp ? cache_record(in) : free(in->reply);
+                return;
+            }
         }
-        ev.data.fd = dstFd;
-        epoll_ctl(eFd, EPOLL_CTL_MOD, dstFd, &ev);
-        return;
-    }
+    } while ((p = strchr(p, '\n')) != NULL);
 
-response_client:
-    response_client(in);
-    if (in->http_rsp) {
-        ev.data.ptr = in;
-        ev.events = EPOLLOUT | EPOLLET;
-        epoll_ctl(eFd, EPOLL_CTL_MOD, in->fd, &ev);
-    }
+error:
+    free(in->reply);
+    in->reply = NULL;
+    if (build_dns_response(in) == 1)
+        in->query_type = 0;
 }
 
-void httpdns_accept_client()
+void new_client(conf *configure)
 {
-    struct sockaddr_in addr;
-    dns_t *client;
-    int i;
+    dns_t *dns;
+    int i, len;
 
-    for (i = MAX_FD - 2; i--;) {
-        if (dns_list[i].fd < 0) {
-            client = &dns_list[i];
+    for (i = 0; i < DNS_MAX_CONNECTION; i++)
+        if (dns_list[i].query_type == 0)
             break;
+    if (i == DNS_MAX_CONNECTION)
+        return;
+    dns = &dns_list[i];
+    len = recvfrom(dnsListenFd, &dns->dns_req, DATA_SIZE, 0, (struct sockaddr *)&dns->src_addr, &addr_len);
+    //printf("addr: [%s:%d]\n", inet_ntoa(dns->src_addr.sin_addr), ntohs(dns->src_addr.sin_port));
+    //dns请求必须大于18
+    if (len <= 18)
+        return;
+    /* 查询缓存 */
+    if (cachePath) {
+        dns->reply = cache_lookup(dns->dns_req + 12, dns);
+        if (dns->reply != NULL) {
+            if (build_dns_response(dns) != 0)
+                dns->query_type = 0;
+            return;
         }
     }
-    //printf("i = %d\n" , i);
-    if (i < 0)
-        return;
-    client->fd = accept(listenFd, (struct sockaddr *)&addr, &addr_len);
-    if (client->fd < 0) {
-        return;
-    }
-    fcntl(client->fd, F_SETFL, O_NONBLOCK);
-    ev.data.ptr = client;
-    ev.events = EPOLLIN | EPOLLET;
-    if (epoll_ctl(eFd, EPOLL_CTL_ADD, client->fd, &ev) != 0) {
-        close(client->fd);
-        client->fd = -1;
+    if (parse_dns_request(dns->dns_req, dns) != 0) {
+        if (dns->host == NULL) {
+            if (build_dns_response(dns) != 0)
+                dns->query_type = 0;
+        } else
+            dns->query_type = 0;
         return;
     }
+    dns->fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (dns->fd < 0) {
+        dns->query_type = 0;
+        return;
+    }
+    fcntl(dns->fd, F_SETFL, O_NONBLOCK);
+    if (connect(dns->fd, (struct sockaddr *)&dst_addr, sizeof(dst_addr)) != 0 && errno != EINPROGRESS) {
+        close(dns->fd);
+        dns->query_type = 0;
+        return;
+    }
+    if (encodeCode)
+        dataEncode(dns->host, strlen(dns->host));
+    /* "GET /d?dn=" + dns->host + " HTTP/1.0\r\nHost: " + host_value + "\r\n\r\n" */
+    dns->http_request = (char *)malloc(10 + strlen(dns->host) + 17 + host_value_len + 4 + 1);
+    free(dns->host);
+    if (dns->http_request == NULL) {
+        close(dns->fd);
+        dns->query_type = 0;
+        return;
+    }
+    //dns->http_request_len = sprintf(dns->http_request, "GET /d?dn=%s HTTP/1.0\r\nHost: %s\r\n\r\n", dns->host, host_value);
+
+    strcpy(dns->http_request, configure->http_req);
+    dns->http_request_len = strlen(dns->http_request);
+    int http_request_len = (int)dns->http_request_len;
+    dns->http_request = replace(dns->http_request, &http_request_len, "[M]", 3, "GET", 3);
+    dns->host_len = strlen(dns->host);
+    dns->http_request = replace(dns->http_request, &http_request_len, "[D]", 3, dns->host, dns->host_len);
+    dns->http_request = replace(dns->http_request, &http_request_len, "[V]", 3, "HTTP/1.0", 8);
+    dns->http_request = replace(dns->http_request, &http_request_len, "\\r", 2, "\r", 1);
+    dns->http_request = replace(dns->http_request, &http_request_len, "\\n", 2, "\n", 1);
+    dns->http_request = replace(dns->http_request, &http_request_len, "\\b", 2, "\b", 1);
+    dns->http_request = replace(dns->http_request, &http_request_len, "\\v", 2, "\v", 1);
+    dns->http_request = replace(dns->http_request, &http_request_len, "\\f", 2, "\f", 1);
+    dns->http_request = replace(dns->http_request, &http_request_len, "\\a", 2, "\a", 1);
+    dns->http_request = replace(dns->http_request, &http_request_len, "\\t", 2, "\t", 1);
+    dns->http_request = replace(dns->http_request, &http_request_len, "\\r", 2, "\r", 1);
+    dns->http_request = replace(dns->http_request, &http_request_len, "\\n", 2, "\n", 1);
+    dns->http_request_len = strlen(dns->http_request);
+    //printf("%s\n", dns->http_request);
+    
+    ev.events = EPOLLOUT | EPOLLERR | EPOLLET;
+    ev.data.ptr = dns;
+    epoll_ctl(dns_efd, EPOLL_CTL_ADD, dns->fd, &ev);
 }
 
-int httpdns_initialize()
+void *httpdns_loop(void *p)
 {
-    struct sockaddr_in listenAddr, dnsAddr;
-    int optval = 0;
+    conf *configure = (conf *) p;
+    int n;
 
-    //ignore PIPE signal
-    signal(SIGPIPE, SIG_IGN);
-    dnsAddr.sin_family = listenAddr.sin_family = AF_INET;   // IPv4
-    dnsAddr.sin_addr.s_addr = inet_addr(DEFAULT_UPPER_IP);  // 本地监听
-    dnsAddr.sin_port = htons(53);
-
-    listenAddr.sin_addr.s_addr = INADDR_ANY;
-    listenAddr.sin_port = htons(53);
-    
-    listenFd = socket(AF_INET, SOCK_STREAM, 0);     // 本地监听,TCP协议
-    dstFd = socket(AF_INET, SOCK_DGRAM, 0);         // DNS监听,UDP协议
-    if (dstFd < 0 || listenFd < 0) {
-        perror("socket");
-        return 1;
-    }
-    fcntl(dstFd, F_SETFL, O_NONBLOCK);              // dstFd 非阻塞
-    fcntl(listenFd, F_SETFL, O_NONBLOCK);           // listenFd 非阻塞
-
-    optval = 1;
-    if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) != 0) {
-        perror("setsockopt");
-        return 1;
-    }
-    if (bind(listenFd, (struct sockaddr *)&listenAddr, sizeof(listenAddr)) != 0) {
-        perror("bind");
-        return 1;
-    }
-    if (listen(listenFd, 20) != 0) {
-        perror("listen");
-        return 1;
-    }
-    
-    eFd = epoll_create(MAX_FD - 1);
-    if (eFd < 0) {
+    fcntl(dnsListenFd, F_SETFL, O_NONBLOCK);
+    dns_efd = epoll_create(DNS_MAX_CONNECTION + 1);
+    if (dns_efd < 0) {
         perror("epoll_create");
-        return 1;
+        return NULL;
     }
-    connect(dstFd, (struct sockaddr *)&dnsAddr, sizeof(dnsAddr));
-    ev.data.fd = listenFd;
+    ev.data.fd = dnsListenFd;
     ev.events = EPOLLIN;
-    epoll_ctl(eFd, EPOLL_CTL_ADD, listenFd, &ev);
-    ev.data.fd = dstFd;
-    ev.events = EPOLLIN;
-    epoll_ctl(eFd, EPOLL_CTL_ADD, dstFd, &ev);
+    epoll_ctl(dns_efd, EPOLL_CTL_ADD, dnsListenFd, &ev);
     memset(dns_list, 0, sizeof(dns_list));
-    //初始化DNS请求结构
-    int16_t i;
-    for (i = MAX_FD - 2; i--;) {
-        dns_list[i].fd = -1;
-        memcpy(dns_list[i].dns_req, &i, sizeof(i));
-        dns_list[i].dns_req[2] = 1;
-        dns_list[i].dns_req[3] = 0;
-        dns_list[i].dns_req[4] = 0;
-        dns_list[i].dns_req[5] = 1;
-        dns_list[i].dns_req[6] = 0;
-        dns_list[i].dns_req[7] = 0;
-        dns_list[i].dns_req[8] = 0;
-        dns_list[i].dns_req[9] = 0;
-        dns_list[i].dns_req[10] = 0;
-        dns_list[i].dns_req[11] = 0;
+
+    while (1) {
+        n = epoll_wait(dns_efd, evs, DNS_MAX_CONNECTION + 1, -1);
+        while (n-- > 0) {
+            if (evs[n].data.fd == dnsListenFd) {
+                if (evs[n].events & EPOLLIN) {
+                    new_client(configure);
+                }
+                if (evs[n].events & EPOLLOUT) {
+                    respond_clients();
+                }
+            } else if (evs[n].events & EPOLLIN) {
+                http_in(evs[n].data.ptr);
+            } else if (evs[n].events & EPOLLOUT) {
+                http_out(evs[n].data.ptr);
+            } else if (evs[n].events & EPOLLERR) {
+                dns_t *err = evs[n].data.ptr;
+                free(err->http_request);
+                epoll_ctl(dns_efd, EPOLL_CTL_DEL, err->fd, NULL);
+                close(err->fd);
+                err->query_type = 0;
+            }
+        }
+    }
+    
+    return NULL;
+}
+
+int udp_listen(char *ip, int port)
+{
+    int fd;
+    struct sockaddr_in addr;
+
+    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("udp socket");
+        exit(1);
+    }
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+        perror("udp bind");
+        exit(1);
     }
 
+    return fd;
+}
+
+int httpdns_initialize(conf * configure) {
+    char *p;
+    p = strchr(configure->addr, ':');
+    host_value = configure->addr;
+    *p = '\0';
+    //printf("udp: %s %d %d\n", configure->addr, configure->dns_listen, atoi(p+1));
+    
+    dnsListenFd = udp_listen("0.0.0.0", configure->dns_listen);
+    dst_addr.sin_addr.s_addr = inet_addr(configure->addr);
+    dst_addr.sin_family = AF_INET;
+    dst_addr.sin_port = htons(atoi(p+1));
+
+    signal(SIGPIPE, SIG_IGN);
+    signal(SIGTERM, write_dns_cache);
+    host_value_len = strlen(host_value);
     return 0;
 }
 
-void *httpdns_start_server(void *p)
-{
-    int n;
-
-    while (1) {
-        n = epoll_wait(eFd, evs, MAX_FD - 1, -1);
-        //printf("n = %d\n", n);
-        while (n-- > 0) {
-            if (evs[n].data.fd == listenFd) {
-                httpdns_accept_client();
-            } else if (evs[n].data.fd == dstFd) {
-                if (evs[n].events & EPOLLIN) {
-                    recv_dns_rsp();
-                } else if (evs[n].events & EPOLLOUT) {
-                    query_dns();
-                }
-            } else if (evs[n].events & EPOLLIN) {
-                read_client(evs[n].data.ptr);
-            } else if (evs[n].events & EPOLLOUT) {
-                response_client(evs[n].data.ptr);
-            }
-        }
-    }
-    return NULL;
-}

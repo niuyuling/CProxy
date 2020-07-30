@@ -21,7 +21,7 @@
 #include <netinet/in.h>
 
 #define MAX_CONNECTION 1020
-#define BUFFER_SIZE 10240
+#define BUFFER_SIZE 8192
 #define PATH_SIZE 270
 
 int local_port;

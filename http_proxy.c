@@ -1,5 +1,5 @@
-#include "http.h"
-#include "proxy.h"
+#include "http_proxy.h"
+#include "main.h"
 
 int sslEncodeCode;
 
@@ -132,6 +132,7 @@ void tcp_in(conn * in, conf * configure)
     if (in->header_buffer != NULL) {
         if (request_type(in->header_buffer) == HTTP_TYPE) {
             in->header_buffer = request_head(in, configure);
+
             struct epoll_event epollEvent;
             conn *remote;
             remote = in + 1;

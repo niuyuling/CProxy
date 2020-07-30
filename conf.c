@@ -112,12 +112,14 @@ static void parse_global_module(char *content, conf * p)
             p->uid = atoi(val_begin);
         } else if (strcasecmp(var, "process") == 0) {
             p->process = atoi(val_begin);
-        } else if (strcasecmp(var, "timer") == 0) {
-            p->timer = atoi(val_begin);
+        } else if (strcasecmp(var, "timeout") == 0) {
+            p->timeout = atoi(val_begin);
         } else if (strcasecmp(var, "sslencoding") == 0) {
             p->sslencoding = atoi(val_begin);
-        } else if (strcasecmp(var, "local_port") == 0) {
-            p->local_port = atoi(val_begin);
+        } else if (strcasecmp(var, "tcp_listen") == 0) {
+            p->tcp_listen = atoi(val_begin);
+        } else if (strcasecmp(var, "dns_listen") == 0) {
+            p->dns_listen = atoi(val_begin);
         }
 
         content = strchr(lineEnd + 1, '\n');
@@ -141,10 +143,12 @@ static void parse_http_module(char *content, conf * p)
             val_begin_len = strlen(val_begin) + 1;
             p->http_del = (char *)malloc(val_begin_len);
             memcpy(p->http_del, val_begin, val_begin_len);
+            p->http_del_len = val_begin_len;
         } else if (strcasecmp(var, "http_first") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->http_first = (char *)malloc(val_begin_len);
             memcpy(p->http_first, val_begin, val_begin_len);
+            p->http_first_len = val_begin_len;
         } else if (strcasecmp(var, "strrep") == 0) {
             val_begin_len = strlen(val_begin) + 1;
 
@@ -210,10 +214,12 @@ static void parse_https_module(char *content, conf * p)
             val_begin_len = strlen(val_begin) + 1;
             p->https_del = (char *)malloc(val_begin_len);
             memcpy(p->https_del, val_begin, val_begin_len);
+            p->https_del_len = val_begin_len;
         } else if (strcasecmp(var, "https_first") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->https_first = (char *)malloc(val_begin_len);
             memcpy(p->https_first, val_begin, val_begin_len);
+            p->https_first_len = val_begin_len;
         } else if (strcasecmp(var, "strrep") == 0) {
             val_begin_len = strlen(val_begin) + 1;
 
@@ -260,6 +266,28 @@ static void parse_https_module(char *content, conf * p)
     }
 }
 
+static void parse_httpdns_module(char *content, conf * p)
+{
+    char *var, *val_begin, *val_end, *lineEnd;
+    int val_begin_len;
+
+    while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL) {
+        if (strcasecmp(var, "addr") == 0) {
+            val_begin_len = strlen(val_begin) + 1;
+            p->addr = (char *)malloc(val_begin_len);
+            memcpy(p->addr, val_begin, val_begin_len);
+        } else if (strcasecmp(var, "http_req") == 0) {
+            val_begin_len = strlen(val_begin) + 1;
+            p->http_req = (char *)malloc(val_begin_len);
+            memcpy(p->http_req, val_begin, val_begin_len);
+            p->http_req_len = val_begin_len;
+        } else if (strcasecmp(var, "encode") == 0) {
+            p->encode = atoi(val_begin);
+        }
+        content = strchr(lineEnd + 1, '\n');
+    }
+}
+
 void free_conf(conf * p)
 {
     free(p->server_pid_file);
@@ -283,12 +311,15 @@ void free_conf(conf * p)
     free(p->https_regrep);
     free(p->https_regrep_aim);
     free(p->https_regrep_obj);
+    
+    free(p->addr);
+    free(p->http_req);
     return;
 }
 
 void read_conf(char *filename, conf * configure)
 {
-    char *buff, *global_content, *http_content, *https_content;
+    char *buff, *global_content, *http_content, *https_content, *httpdns_content;
     FILE *file;
     long file_size;
 
@@ -303,7 +334,9 @@ void read_conf(char *filename, conf * configure)
     if (buff == NULL)
         perror("out of memory.");
     rewind(file);
-    fread(buff, file_size, 1, file);
+    if (fread(buff, file_size, 1, file) < 1) {
+        perror("fread");
+    }
     fclose(file);
     buff[file_size] = '\0';
 
@@ -321,16 +354,21 @@ void read_conf(char *filename, conf * configure)
         perror("read https module error");
     parse_https_module(https_content, configure);
     free(https_content);
-
+    
+    if ((httpdns_content = read_module(buff, "httpdns")) == NULL)
+        perror("read httpdns module error");
+    parse_httpdns_module(httpdns_content, configure);
+    free(httpdns_content);
 }
 
 void printfconf(conf * configure)
 {
     printf("%d\n", configure->uid);
     printf("%d\n", configure->process);
-    printf("%d\n", configure->timer);
+    printf("%d\n", configure->timeout);
     printf("%d\n", configure->sslencoding);
-    printf("%d\n", configure->local_port);
+    printf("%d\n", configure->tcp_listen);
+    printf("%d\n", configure->dns_listen);
     printf("\n");
     if (configure->http_ip)
         printf("%s\n", configure->http_ip);
@@ -372,4 +410,10 @@ void printfconf(conf * configure)
         printf("%s\n", configure->https_regrep_aim);
     if (configure->https_regrep_obj)
         printf("%s\n", configure->https_regrep_obj);
+    
+    printf("\n");
+    if (configure->addr)
+        printf("%s\n", configure->addr);
+    if (configure->http_req)
+        printf("%s\n", configure->http_req);
 }
