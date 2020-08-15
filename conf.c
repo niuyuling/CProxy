@@ -142,11 +142,13 @@ static void parse_http_module(char *content, conf * p)
         } else if (strcasecmp(var, "http_del") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->http_del = (char *)malloc(val_begin_len);
+            memset(p->http_del, 0, val_begin_len);
             memcpy(p->http_del, val_begin, val_begin_len);
             p->http_del_len = val_begin_len;
         } else if (strcasecmp(var, "http_first") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->http_first = (char *)malloc(val_begin_len);
+            memset(p->http_first, 0, val_begin_len);
             memcpy(p->http_first, val_begin, val_begin_len);
             p->http_first_len = val_begin_len;
         } else if (strcasecmp(var, "strrep") == 0) {
@@ -155,19 +157,21 @@ static void parse_http_module(char *content, conf * p)
             p->http_strrep = (char *)malloc(val_begin_len);
             if (p->http_strrep == NULL)
                 free(p->http_strrep);
+            memset(p->http_strrep, 0, val_begin_len);
             memcpy(p->http_strrep, val_begin, val_begin_len);
 
             char *p1 = strstr(val_begin, "->");
-            printf("p1 %s\n", p1);
             p->http_strrep_aim = (char *)malloc(val_begin_len - strlen(p1 + 2) - 2 + 1);
             if (p->http_strrep_aim == NULL) {
                 free(p->http_strrep_aim);
             }
+            memset(p->http_strrep_aim, 0, val_begin_len - strlen(p1 + 2) - 2 + 1);
             strncpy_(p->http_strrep_aim, val_begin, val_begin_len - strlen(p1 + 2) - 3); // 实际 val_begin_len 多1
             p->http_strrep_obj = (char *)malloc(strlen(p1 + 2) + 1);
             if (p->http_strrep_obj == NULL) {
                 free(p->http_strrep_obj);
             }
+            memset(p->http_strrep_obj, 0, strlen(p1 + 2) + 1);
             strncpy_(p->http_strrep_obj, p1 + 2, strlen(p1 + 2));
             p->http_strrep_aim_len = strlen(p->http_strrep_aim);
             p->http_strrep_obj_len = strlen(p->http_strrep_obj);
@@ -177,6 +181,7 @@ static void parse_http_module(char *content, conf * p)
             p->http_regrep = (char *)malloc(val_begin_len);
             if (p->http_regrep == NULL)
                 free(p->http_regrep);
+            memset(p->http_regrep, 0, val_begin_len);
             memcpy(p->http_regrep, val_begin, val_begin_len);
 
             char *p1 = strstr(val_begin, "->");
@@ -184,11 +189,13 @@ static void parse_http_module(char *content, conf * p)
             if (p->http_regrep_aim == NULL) {
                 free(p->http_regrep_aim);
             }
+            memset(p->http_regrep_aim, 0, val_begin_len - strlen(p1 + 2) - 2 + 1);
             strncpy_(p->http_regrep_aim, val_begin, val_begin_len - strlen(p1 + 2) - 3);
             p->http_regrep_obj = (char *)malloc(strlen(p1 + 2) + 1);
             if (p->http_regrep_obj == NULL) {
                 free(p->http_regrep_obj);
             }
+            memset(p->http_regrep_obj, 0, strlen(p1 + 2) + 1);
             strncpy_(p->http_regrep_obj, p1 + 2, strlen(p1 + 2));
             p->http_regrep_aim_len = strlen(p->http_regrep_aim);
             p->http_regrep_obj_len = strlen(p->http_regrep_obj);
@@ -207,17 +214,20 @@ static void parse_https_module(char *content, conf * p)
         if (strcasecmp(var, "https_ip") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->https_ip = (char *)malloc(val_begin_len);
+            memset(p->https_ip, 0, val_begin_len);
             memcpy(p->https_ip, val_begin, val_begin_len);
         } else if (strcasecmp(var, "https_port") == 0) {
             p->https_port = atoi(val_begin);
         } else if (strcasecmp(var, "https_del") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->https_del = (char *)malloc(val_begin_len);
+            memset(p->https_del, 0, val_begin_len);
             memcpy(p->https_del, val_begin, val_begin_len);
             p->https_del_len = val_begin_len;
         } else if (strcasecmp(var, "https_first") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->https_first = (char *)malloc(val_begin_len);
+            memset(p->https_first, 0, val_begin_len);
             memcpy(p->https_first, val_begin, val_begin_len);
             p->https_first_len = val_begin_len;
         } else if (strcasecmp(var, "strrep") == 0) {
@@ -226,6 +236,7 @@ static void parse_https_module(char *content, conf * p)
             p->https_strrep = (char *)malloc(val_begin_len);
             if (p->https_strrep == NULL)
                 free(p->https_strrep);
+            memset(p->https_strrep, 0, val_begin_len);
             memcpy(p->https_strrep, val_begin, val_begin_len);
 
             char *p1 = strstr(val_begin, "->");
@@ -233,11 +244,13 @@ static void parse_https_module(char *content, conf * p)
             if (p->https_strrep_aim == NULL) {
                 free(p->https_strrep_aim);
             }
+            memset(p->https_strrep_aim, 0, val_begin_len - strlen(p1 + 2) - 2 + 1);
             strncpy_(p->https_strrep_aim, val_begin, val_begin_len - strlen(p1 + 2) - 3);
             p->https_strrep_obj = (char *)malloc(strlen(p1 + 2) + 1);
             if (p->https_strrep_obj == NULL) {
                 free(p->https_strrep_obj);
             }
+            memset(p->https_strrep_obj, 0, strlen(p1 + 2) + 1);
             strncpy_(p->https_strrep_obj, p1 + 2, strlen(p1 + 2));
             p->https_strrep_aim_len = strlen(p->https_strrep_aim);
             p->https_strrep_obj_len = strlen(p->https_strrep_obj);
@@ -247,16 +260,19 @@ static void parse_https_module(char *content, conf * p)
             p->https_regrep = (char *)malloc(val_begin_len);
             if (p->https_regrep == NULL)
                 free(p->https_regrep);
+            memset(p->https_regrep, 0, val_begin_len);
             memcpy(p->https_regrep, val_begin, val_begin_len);
 
             char *p1 = strstr(val_begin, "->");
             p->https_regrep_aim = (char *)malloc(val_begin_len - strlen(p1 + 2) - 2 + 1);
             if (p->https_regrep_aim == NULL)
                 free(p->https_regrep_aim);
+            memset(p->https_regrep_aim, 0, val_begin_len - strlen(p1 + 2) - 2 + 1);
             strncpy_(p->https_regrep_aim, val_begin, val_begin_len - strlen(p1 + 2) - 3);
             p->https_regrep_obj = (char *)malloc(strlen(p1 + 2) + 1);
             if (p->https_regrep_obj == NULL)
                 free(p->https_regrep_obj);
+            memset(p->https_regrep_obj, 0, strlen(p1 + 2) + 1);
             strncpy_(p->https_regrep_obj, p1 + 2, strlen(p1 + 2));
             p->https_regrep_aim_len = strlen(p->https_regrep_aim);
             p->https_regrep_obj_len = strlen(p->https_regrep_obj);
@@ -275,10 +291,12 @@ static void parse_httpdns_module(char *content, conf * p)
         if (strcasecmp(var, "addr") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->addr = (char *)malloc(val_begin_len);
+            memset(p->addr, 0, val_begin_len);
             memcpy(p->addr, val_begin, val_begin_len);
         } else if (strcasecmp(var, "http_req") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->http_req = (char *)malloc(val_begin_len);
+            memset(p->http_req, 0, val_begin_len);
             memcpy(p->http_req, val_begin, val_begin_len);
             p->http_req_len = val_begin_len;
         } else if (strcasecmp(var, "encode") == 0) {
@@ -290,30 +308,48 @@ static void parse_httpdns_module(char *content, conf * p)
 
 void free_conf(conf * p)
 {
-    free(p->server_pid_file);
+    if (p->http_ip)
+        free(p->http_ip);
+    if (p->http_del)
+        free(p->http_del);
+    if (p->http_first)
+        free(p->http_first);
+    if (p->http_strrep)
+        free(p->http_strrep);
+    if (p->http_strrep_aim)
+        free(p->http_strrep_aim);
+    if (p->http_strrep_obj)
+        free(p->http_strrep_obj);
+    if (p->http_regrep)
+        free(p->http_regrep);
+    if (p->http_regrep_aim)
+        free(p->http_regrep_aim);
+    if (p->http_regrep_obj)
+        free(p->http_regrep_obj);
 
-    free(p->http_ip);
-    free(p->http_del);
-    free(p->http_first);
-    free(p->http_strrep);
-    free(p->http_strrep_aim);
-    free(p->http_strrep_obj);
-    free(p->http_regrep);
-    free(p->http_regrep_aim);
-    free(p->http_regrep_obj);
-
-    free(p->https_ip);
-    free(p->https_del);
-    free(p->https_first);
-    free(p->https_strrep);
-    free(p->https_strrep_aim);
-    free(p->https_strrep_obj);
-    free(p->https_regrep);
-    free(p->https_regrep_aim);
-    free(p->https_regrep_obj);
+    if (p->https_ip)
+        free(p->https_ip);
+    if (p->https_del)
+        free(p->https_del);
+    if (p->https_first)
+        free(p->https_first);
+    if (p->https_strrep)
+        free(p->https_strrep);
+    if (p->https_strrep_aim)
+        free(p->https_strrep_aim);
+    if (p->https_strrep_obj)
+        free(p->https_strrep_obj);
+    if (p->https_regrep)
+        free(p->https_regrep);
+    if (p->https_regrep_aim)
+        free(p->https_regrep_aim);
+    if (p->https_regrep_obj)
+        free(p->https_regrep_obj);
     
-    free(p->addr);
-    free(p->http_req);
+    if (p->addr)
+        free(p->addr);
+    if (p->http_req)
+        free(p->http_req);
     return;
 }
 
@@ -359,61 +395,4 @@ void read_conf(char *filename, conf * configure)
         perror("read httpdns module error");
     parse_httpdns_module(httpdns_content, configure);
     free(httpdns_content);
-}
-
-void printfconf(conf * configure)
-{
-    printf("%d\n", configure->uid);
-    printf("%d\n", configure->process);
-    printf("%d\n", configure->timeout);
-    printf("%d\n", configure->sslencoding);
-    printf("%d\n", configure->tcp_listen);
-    printf("%d\n", configure->dns_listen);
-    printf("\n");
-    if (configure->http_ip)
-        printf("%s\n", configure->http_ip);
-    printf("%d\n", configure->http_port);
-    if (configure->http_del)
-        printf("%s\n", configure->http_del);
-    if (configure->http_first)
-        printf("%s\n", configure->http_first);
-    if (configure->http_strrep)
-        printf("%s\n", configure->http_strrep);
-    if (configure->http_strrep_aim)
-        printf("%s\n", configure->http_strrep_aim);
-    if (configure->http_strrep_obj)
-        printf("%s\n", configure->http_strrep_obj);
-    if (configure->http_regrep)
-        printf("%s\n", configure->http_regrep);
-    if (configure->http_regrep_aim)
-        printf("%s\n", configure->http_regrep_aim);
-    if (configure->http_regrep_obj)
-        printf("%s\n", configure->http_regrep_obj);
-
-    printf("\n");
-    if (configure->https_ip)
-        printf("%s\n", configure->https_ip);
-    printf("%d\n", configure->https_port);
-    if (configure->https_del)
-        printf("%s\n", configure->https_del);
-    if (configure->https_first)
-        printf("%s\n", configure->https_first);
-    if (configure->https_strrep)
-        printf("%s\n", configure->https_strrep);
-    if (configure->https_strrep_aim)
-        printf("%s\n", configure->https_strrep_aim);
-    if (configure->https_strrep_obj)
-        printf("%s\n", configure->https_strrep_obj);
-    if (configure->https_regrep)
-        printf("%s\n", configure->https_regrep);
-    if (configure->https_regrep_aim)
-        printf("%s\n", configure->https_regrep_aim);
-    if (configure->https_regrep_obj)
-        printf("%s\n", configure->https_regrep_obj);
-    
-    printf("\n");
-    if (configure->addr)
-        printf("%s\n", configure->addr);
-    if (configure->http_req)
-        printf("%s\n", configure->http_req);
 }

@@ -1,5 +1,5 @@
-#ifndef HTTP_H
-#define HTTP_H
+#ifndef HTTP_PROXY_H
+#define HTTP_PROXY_H
 
 #include "conf.h"
 #include "main.h"
@@ -16,12 +16,12 @@ typedef struct conn_t {
     int fd;
     char *header_buffer;
     int header_buffer_len, sent_len, timer;
+    unsigned request_type :1;
 } conn;
 
 extern conn cts[MAX_CONNECTION];
 extern void tcp_in(conn * in, conf * configure);
 extern void tcp_out(conn * out);
-extern void clienttoserver(conn * in);
 extern void close_connection(conn * conn);
 
 extern char *request_head(conn * in, conf * configure);

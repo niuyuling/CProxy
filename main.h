@@ -1,5 +1,5 @@
-#ifndef PROXY_H
-#define PROXY_H
+#ifndef MAIN_H
+#define MAIN_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,13 +16,14 @@
 #include <pthread.h>
 #include <pwd.h>
 #include <dirent.h>
-#include <pthread.h>
+#include <sched.h>
 #include <getopt.h>
 #include <netinet/in.h>
 
 #define MAX_CONNECTION 1020
 #define BUFFER_SIZE 8192
 #define PATH_SIZE 270
+#define CACHE_SIZE 270
 
 int local_port;
 char local_host[128];

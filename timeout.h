@@ -2,7 +2,6 @@
 #define TIME_H
 
 extern int timeout_minute;
-
-void *close_timeout_connectionLoop(void *nullPtr);
+void *tcp_timeout_check(void *nullPtr);
 
 #endif

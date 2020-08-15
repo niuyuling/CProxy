@@ -17,8 +17,6 @@ typedef struct CONF {
     //int server_port;
     int tcp_listen;
     int dns_listen;
-    char *server_pid_file;
-    int server_pid_file_len;    // length
 
     // http module
     int http_port;
@@ -58,6 +56,5 @@ char *strncpy_(char *dest, const char *src, size_t n);
 void read_conf(char *file, conf * p);
 void free_conf(conf * p);
 
-void printfconf(conf * configure);
 
 #endif

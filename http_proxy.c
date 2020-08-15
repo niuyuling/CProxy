@@ -91,24 +91,6 @@ static void serverToClient(conn * server)
 
 }
 
-void clienttoserver(conn * in)
-{
-    int write_len;
-    conn *remote;
-    remote = in + 1;
-
-    write_len = write(remote->fd, in->header_buffer, in->header_buffer_len);
-    if (write_len == in->header_buffer_len) {
-        in->header_buffer_len = 0;
-        in->header_buffer = NULL;
-    } else {
-        close_connection(remote);
-    }
-
-    return;
-
-}
-
 // 判断请求类型
 static int8_t request_type(char *data)
 {
@@ -119,6 +101,8 @@ static int8_t request_type(char *data)
 
 void tcp_in(conn * in, conf * configure)
 {
+    conn *remote;
+    
     if (in->fd < 0)
         return;
     // 如果in - cts是奇数,那么是服务端触发事件
@@ -127,23 +111,28 @@ void tcp_in(conn * in, conf * configure)
         serverToClient(in);
         return;
     }
+    remote = in + 1;
     in->timer = (in + 1)->timer = 0;
     in->header_buffer = read_data(in, in->header_buffer, &in->header_buffer_len);
-    if (in->header_buffer != NULL) {
+    if (in->header_buffer == NULL) {
+        close_connection(in);
+        return;
+    } else if (in->header_buffer != NULL) {
         if (request_type(in->header_buffer) == HTTP_TYPE) {
             in->header_buffer = request_head(in, configure);
-
             struct epoll_event epollEvent;
-            conn *remote;
-            remote = in + 1;
             remote->fd = create_connection(remote_host, remote_port);
             epollEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
             epollEvent.data.ptr = remote;
             epoll_ctl(epollfd, EPOLL_CTL_ADD, remote->fd, &epollEvent);
         }
     }
+    
     dataEncode(in->header_buffer, in->header_buffer_len);
-    clienttoserver(in);
+    
+    if (remote->fd >= 0)
+        tcp_out(remote);
+
     return;
 }
 

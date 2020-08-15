@@ -14,8 +14,6 @@ char help_information(void)
     static const char *s_help[] = {
         "",
         "Options:",
-        "    -l --local_address     : localIP:localPORT",
-        "    -f --remote_address    : remoteIP:remotePORT",
         "    -p --process           : process number",
         "    -t --timeout           : timeout minute",
         "    -e --coding            : ssl coding, [0-128]",

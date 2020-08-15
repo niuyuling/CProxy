@@ -14,7 +14,6 @@ struct dns_cache *cache, *cache_temp;
 socklen_t addr_len = sizeof(dst_addr);
 unsigned int cache_using, cacheLimit;
 
-
 int read_cache_file()
 {
     char *buff, *answer, *question;

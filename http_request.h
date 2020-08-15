@@ -1,5 +1,5 @@
-#ifndef REQUEST_H
-#define REQUEST_H
+#ifndef HTTP_REQUEST_H
+#define HTTP_REQUEST_H
 
 #include <string.h>
 #include <stdio.h>
@@ -10,7 +10,12 @@
 
 struct http_request {
     char *M, *U, *V;
+    char *host, *port, *H;
+    char *url, *uri;
+
     int M_len, U_len, V_len;
+    int host_len, port_len, H_len;
+    int url_len, uri_len;
 };
 
 void *memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen);

@@ -2,7 +2,7 @@
     EPOLL多路复用IO, Android/Linux本地二级代理.  
     可以修改HTTP协议消息头(request).  
     可以修改HTTP协议CONNECT方法消息头.  
-
+    可以修改HTTP协议GET方法消息头.  
 
 ### Build
     Linux编译:  
@@ -23,11 +23,9 @@
     Usage: [-?hpt] [-s signal] [-c filename]
 
     Options:
-        -l --local_address     : localip:localport
-        -f --remote_address    : remoteip:remote:port
-        -p --process           : process number, default: 2
-        -t --timeout           : timeout minute, default: no timeout
-        -e --coding            : ssl coding, default: [0-128]
+        -p --process           : process number
+        -t --timeout           : timeout minute
+        -e --coding            : ssl coding, [0-128]
         -s --signal            : send signal to a master process: stop, quit, restart, reload, status
         -c --config            : set configuration file, default: CProxy.conf
         -? -h --? --help       : help information
@@ -35,13 +33,13 @@
     Mar 22 2020 09:29:11 Compile、link.
 
     #启动
-    ./CProxy -c CProxy.ini
+    ./CProxy -c CProxy.conf
     #关闭
     ./CProxy -s stop
     #重启
-    ./CProxy -s reload -c CProxy.ini
+    ./CProxy -s reload -c CProxy.conf
     or
-    ./CProxy -s restart -c CProxy.ini
+    ./CProxy -s restart -c CProxy.conf
     #状态(只打印 Pid)
     ./CProxy -s status
     

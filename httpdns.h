@@ -23,6 +23,7 @@
 #define DATA_SIZE 512
 #define HTTP_RSP_SIZE 1024
 
+
 typedef struct dns_connection {
     char dns_req[DATA_SIZE];
     struct sockaddr_in src_addr;

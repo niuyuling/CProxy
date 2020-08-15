@@ -1,7 +1,7 @@
 CROSS_COMPILE ?= 
 CC := $(CROSS_COMPILE)gcc
 STRIP := $(CROSS_COMPILE)strip
-CFLAGS += -g -O2 -Wall -pthread -static
+CFLAGS += -g -O2 -Wall -pthread -fcommon
 LIBS = 
 OBJ := CProxy
 
@@ -14,3 +14,5 @@ clean:
 	rm -rf *.o
 	rm $(OBJ)
 
+android:
+	ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=Application.mk APP_BUILD_SCRIPT=Android.mk

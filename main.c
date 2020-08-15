@@ -19,7 +19,8 @@ int create_connection(char *remote_host, int remote_port)
 {
     struct sockaddr_in server_addr;
     struct hostent *server;
-    int sock;
+    int sock = -1;
+    server = NULL;
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket");
         return -1;
@@ -33,7 +34,7 @@ int create_connection(char *remote_host, int remote_port)
 
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
+    memmove(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
     server_addr.sin_port = htons(remote_port);
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("connect");
@@ -125,7 +126,7 @@ void *start_server(conf * configure)
     int n;
     pthread_t thread_id;
     if (timeout_minute)
-        pthread_create(&thread_id, NULL, &close_timeout_connectionLoop, NULL);
+        pthread_create(&thread_id, NULL, &tcp_timeout_check, NULL);
 
     while (1) {
         n = epoll_wait(epollfd, events, MAX_CONNECTION, -1);
@@ -150,16 +151,17 @@ int process_signal(int signal, char *process_name)
     char bufer[PATH_SIZE];
     char comm[PATH_SIZE];
     char proc_comm_name[PATH_SIZE];
-    int num[PATH_SIZE] = { 0 };
+    int number[PATH_SIZE] = { 0 };
     int n = 0;
     FILE *fp;
     DIR *dir;
     struct dirent *ptr;
     dir = opendir("/proc");
+    bzero(bufer, 0);
+    bzero(comm, 0);
+    bzero(proc_comm_name, 0);
     while ((ptr = readdir(dir)) != NULL) {
-        if (ptr->d_type == DT_DIR && strcasecmp(ptr->d_name, ".")
-            && strcasecmp(ptr->d_name, "..")) {
-            bzero(bufer, 0);
+        if (ptr->d_type == DT_DIR && strcasecmp(ptr->d_name, ".") && strcasecmp(ptr->d_name, "..")) {
             sprintf(comm, "/proc/%s/comm", ptr->d_name);
             if (access(comm, F_OK) == 0) {
                 fp = fopen(comm, "r");
@@ -169,7 +171,7 @@ int process_signal(int signal, char *process_name)
                 }
                 sscanf(bufer, "%s", proc_comm_name);
                 if (!strcmp(process_name, proc_comm_name)) {
-                    num[n] = atoi(ptr->d_name);
+                    number[n] = atoi(ptr->d_name);
                     n += 1;
                 }
                 fclose(fp);
@@ -179,10 +181,10 @@ int process_signal(int signal, char *process_name)
     }
     closedir(dir);
 
-    if (signal == SERVER_STATUS) { // 状态
-        n -= 2;                 // 去除最后一个搜索时的本身进程
-        for (; n >= 0; n--) {
-            printf("\t%d\n", num[n]);
+    if (signal == SERVER_STATUS) {  // 状态
+        n -= 2;                     // 去除最后一个搜索时的本身进程和最后加一后未使用的
+        for (; n >= 0; n--) {       // 依据数组从大到小的下标打印PID
+            printf("\t%d\n", number[n]);
         }
     }
     if (signal == SERVER_STOP || signal == SERVER_RELOAD) { // 关闭
@@ -339,6 +341,9 @@ void _main(int argc, char *argv[])
         exit(1);
 
     server_ini();               // 初始化http_proxy
+    //start_server(configure);
+    //httpdns_loop(configure);
+    
     pthread_t thread_id = 0;
     sigset_t signal_mask;
     sigemptyset(&signal_mask);
@@ -346,14 +351,13 @@ void _main(int argc, char *argv[])
     if (pthread_sigmask(SIG_BLOCK, &signal_mask, NULL) != 0) {
         printf("block sigpipe error\n");
     }
-    pthread_detach(thread_id);
     if (timeout_minute)
-        pthread_create(&thread_id, NULL, &close_timeout_connectionLoop, NULL);
+        pthread_create(&thread_id, NULL, &tcp_timeout_check, NULL);
     if (pthread_create(&thread_id, NULL, &http_proxy_loop, (void *)configure) != 0)
         perror("pthread_create");
     if (pthread_create(&thread_id, NULL, &httpdns_loop, (void *)configure) != 0)
         perror("pthread_create");
-
+    
     pthread_join(thread_id, NULL);
     pthread_exit(NULL);
 
