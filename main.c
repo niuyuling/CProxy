@@ -181,9 +181,9 @@ int process_signal(int signal, char *process_name)
     }
     closedir(dir);
 
-    if (signal == SERVER_STATUS) {  // 状态
-        n -= 2;                     // 去除最后一个搜索时的本身进程和最后加一后未使用的
-        for (; n >= 0; n--) {       // 依据数组从大到小的下标打印PID
+    if (signal == SERVER_STATUS) { // 状态
+        n -= 2;                 // 去除最后一个搜索时的本身进程和最后加一后未使用的
+        for (; n >= 0; n--) {   // 依据数组从大到小的下标打印PID
             printf("\t%d\n", number[n]);
         }
     }
@@ -229,6 +229,7 @@ void _main(int argc, char *argv[])
     char *inifile = "/CProxy.conf";
     inifile = strcat(path, inifile);
     conf *configure = (struct CONF *)malloc(sizeof(struct CONF));
+    memset(configure, 0, sizeof(struct CONF));
     read_conf(inifile, configure);
 
     sslEncodeCode = 0;          // 默认SSL不转码
@@ -241,7 +242,6 @@ void _main(int argc, char *argv[])
     if (configure->process > 0) // 如果配置文件有值,优先使用配置文件读取的值
         process = configure->process;
 
-    //char optstring[] = ":l:f:t:p:c:e:s:h?";
     int longindex = 0;
     char optstring[] = ":l:f:t:p:c:e:s:h?";
     static struct option longopts[] = {
@@ -257,6 +257,7 @@ void _main(int argc, char *argv[])
         { 0, 0, 0, 0 }
     };
     char *p = NULL;
+    //char optstring[] = ":l:f:t:p:c:e:s:h?";
     //while (-1 != (opt = getopt(argc, argv, optstring))) {
     while (-1 != (opt = getopt_long(argc, argv, optstring, longopts, &longindex))) {
         switch (opt) {
@@ -313,7 +314,8 @@ void _main(int argc, char *argv[])
         }
     }
 
-    httpdns_initialize(configure);       // 初始化http_dns
+    server_ini();               // 守护进程
+    httpdns_initialize(configure); // 初始化http_dns
     memset(cts, 0, sizeof(cts));
     for (i = MAX_CONNECTION; i--;)
         cts[i].fd = -1;
@@ -340,10 +342,9 @@ void _main(int argc, char *argv[])
     if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1) // 设置uid
         exit(1);
 
-    server_ini();               // 初始化http_proxy
-    //start_server(configure);
+    //start_server(configure); // 单线程
     //httpdns_loop(configure);
-    
+
     pthread_t thread_id = 0;
     sigset_t signal_mask;
     sigemptyset(&signal_mask);
@@ -357,11 +358,21 @@ void _main(int argc, char *argv[])
         perror("pthread_create");
     if (pthread_create(&thread_id, NULL, &httpdns_loop, (void *)configure) != 0)
         perror("pthread_create");
-    
+
     pthread_join(thread_id, NULL);
     pthread_exit(NULL);
 
-    return ;
+/*  线程分离未使用
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&thread_id, &attr, &tcp_timeout_check, NULL);
+    pthread_create(&thread_id, &attr, &http_proxy_loop, (void *)configure);
+    pthread_create(&thread_id, &attr, &httpdns_loop, (void *)configure);
+    pthread_exit(NULL);
+*/
+    return;
 }
 
 int main(int argc, char *argv[])

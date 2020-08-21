@@ -276,16 +276,16 @@ void parse_request_head(char *http_request_line, struct http_request *http_reque
     if (http_request->U_len < 0)
         return;
 
-    http_request->host = (char *)malloc(sizeof(char) * head_len);
+    http_request->host = (char *)malloc(sizeof(char) * head_len + CACHE_SIZE);
     http_request->port = (char *)malloc(sizeof(char) * head_len);
     http_request->url = (char *)malloc(sizeof(char) * head_len);
     http_request->uri = (char *)malloc(sizeof(char) * head_len);
     http_request->H = (char *)malloc(sizeof(char) * head_len * 2);
-    memset(http_request->host, '\0', head_len);
-    memset(http_request->port, '\0', head_len);
-    memset(http_request->url, '\0', head_len);
-    memset(http_request->uri, '\0', head_len);
-    memset(http_request->H, '\0', head_len * 2);
+    memset(http_request->host, 0, head_len + CACHE_SIZE);
+    memset(http_request->port, 0, head_len);
+    memset(http_request->url, 0, head_len);
+    memset(http_request->uri, 0, head_len);
+    memset(http_request->H, 0, head_len * 2);
 
     if (extract_host(http_request_line, http_request->host, http_request->port) == -1)
         return;
@@ -309,6 +309,8 @@ char *request_head(conn * in, conf * configure)
 {
     struct http_request *http_request;
     http_request = (struct http_request *)malloc(sizeof(struct http_request));
+    memset(http_request, 0, sizeof(struct http_request));
+
     parse_request_head(in->header_buffer, http_request);
 
     if (strncmp(in->header_buffer, "CONNECT", 7) == 0) {
@@ -391,10 +393,6 @@ char *request_head(conn * in, conf * configure)
         }
         splice_head(incomplete_head, "\n", configure->http_first);
         incomplete_head_len = strlen(incomplete_head);
-        if (configure->http_strrep)
-            incomplete_head = replace(incomplete_head, &incomplete_head_len, configure->http_strrep_aim, configure->http_strrep_aim_len, configure->http_strrep_obj, configure->http_strrep_obj_len);
-        if (configure->http_regrep)
-            incomplete_head = regrep(incomplete_head, &incomplete_head_len, configure->http_regrep_aim, configure->http_regrep_obj, configure->http_regrep_obj_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\r", 2, "\r", 1);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\n", 2, "\n", 1);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\b", 2, "\b", 1);
@@ -414,11 +412,16 @@ char *request_head(conn * in, conf * configure)
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, http_request->host, http_request->host_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[port]", 6, http_request->port, http_request->port_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[H]", 3, http_request->H, http_request->H_len);
-        //printf("%s", incomplete_head);
+        if (configure->http_strrep)
+            incomplete_head = replace(incomplete_head, &incomplete_head_len, configure->http_strrep_aim, configure->http_strrep_aim_len, configure->http_strrep_obj, configure->http_strrep_obj_len);
+        if (configure->http_regrep)
+            incomplete_head = regrep(incomplete_head, &incomplete_head_len, configure->http_regrep_aim, configure->http_regrep_obj, configure->http_regrep_obj_len);
+        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, http_request->host, http_request->host_len);
         incomplete_head_len = strlen(incomplete_head);
+        //printf("%s", incomplete_head);
 
-        memset(in->header_buffer, 0, strlen(in->header_buffer));
-        memmove(in->header_buffer, incomplete_head, incomplete_head_len);
+        memset(in->header_buffer, 0, in->header_buffer_len);
+        memmove(in->header_buffer, incomplete_head, incomplete_head_len + 1);
         in->header_buffer_len = strlen(in->header_buffer);
         free(incomplete_head);
     }
