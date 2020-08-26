@@ -367,10 +367,10 @@ char *request_head(conn * in, conf * configure)
         in->header_buffer_len = strlen(in->header_buffer);
         free(incomplete_head);
 
-    } else if (strncmp(in->header_buffer, "GET", 3) == 0) {
+    } else if (strncmp(in->header_buffer, "GET", 3) == 0 || strncmp(in->header_buffer, "POST", 4) == 0) {
         char *incomplete_head;
         int incomplete_head_len;
-        char https_del_copy[configure->http_del_len];
+        char http_del_copy[configure->http_del_len];
         char *result = NULL;
 
         if (configure->http_port > 0)
@@ -384,9 +384,9 @@ char *request_head(conn * in, conf * configure)
         }
         memset(incomplete_head, 0, sizeof(char) * (BUFFER_SIZE));
         memcpy(incomplete_head, in->header_buffer, strlen(in->header_buffer));
-        memcpy(https_del_copy, configure->https_del, configure->https_del_len);
+        memcpy(http_del_copy, configure->http_del, configure->http_del_len);
 
-        result = strtok(https_del_copy, ",");
+        result = strtok(http_del_copy, ",");
         while (result != NULL) {
             delete_head(incomplete_head, result, '\n');
             result = strtok(NULL, ",");

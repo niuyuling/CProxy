@@ -91,10 +91,42 @@ static void serverToClient(conn * server)
 
 }
 
+
+void clientToserver(conn * in)
+{
+    int write_len;
+    conn *remote;
+    remote = in + 1;
+
+    write_len = write(remote->fd, in->header_buffer, in->header_buffer_len);
+    if (write_len == in->header_buffer_len) {
+        in->header_buffer_len = 0;
+        in->header_buffer = NULL;
+    } else {
+        close_connection(remote);
+    }
+
+    return;
+
+}
+
 // 判断请求类型
 static int8_t request_type(char *data)
 {
-    if (strncmp(data, "GET", 3) == 0 || strncmp(data, "POST", 4) == 0 || strncmp(data, "CONNECT", 7) == 0 || strncmp(data, "HEAD", 4) == 0 || strncmp(data, "PUT", 3) == 0 || strncmp(data, "OPTIONS", 7) == 0 || strncmp(data, "MOVE", 4) == 0 || strncmp(data, "COPY", 4) == 0 || strncmp(data, "TRACE", 5) == 0 || strncmp(data, "DELETE", 6) == 0 || strncmp(data, "LINK", 4) == 0 || strncmp(data, "UNLINK", 6) == 0 || strncmp(data, "PATCH", 5) == 0 || strncmp(data, "WRAPPED", 7) == 0)
+    if (strncmp(data, "GET", 3) == 0 ||
+    strncmp(data, "POST", 4) == 0 ||
+    strncmp(data, "CONNECT", 7) == 0 ||
+    strncmp(data, "HEAD", 4) == 0 ||
+    strncmp(data, "PUT", 3) == 0 ||
+    strncmp(data, "OPTIONS", 7) == 0 ||
+    strncmp(data, "MOVE", 4) == 0 ||
+    strncmp(data, "COPY", 4) == 0 ||
+    strncmp(data, "TRACE", 5) == 0 ||
+    strncmp(data, "DELETE", 6) == 0 ||
+    strncmp(data, "LINK", 4) == 0 ||
+    strncmp(data, "UNLINK", 6) == 0 ||
+    strncmp(data, "PATCH", 5) == 0 ||
+    strncmp(data, "WRAPPED", 7) == 0)
         return HTTP_TYPE;
     return OTHER_TYPE;
 }
@@ -111,27 +143,36 @@ void tcp_in(conn * in, conf * configure)
         serverToClient(in);
         return;
     }
-    remote = in + 1;
+    
     in->timer = (in + 1)->timer = 0;
     in->header_buffer = read_data(in, in->header_buffer, &in->header_buffer_len);
     if (in->header_buffer == NULL) {
         close_connection(in);
         return;
-    } else if (in->header_buffer != NULL) {
-        if (request_type(in->header_buffer) == HTTP_TYPE) {
-            in->header_buffer = request_head(in, configure);
-            struct epoll_event epollEvent;
-            remote->fd = create_connection(remote_host, remote_port);
-            epollEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
-            epollEvent.data.ptr = remote;
-            epoll_ctl(epollfd, EPOLL_CTL_ADD, remote->fd, &epollEvent);
-        }
+    }
+    
+    remote = in + 1;
+    if (in->request_type == OTHER_TYPE)
+    {
+        goto handle_data_complete;
+    }
+    
+    if (request_type(in->header_buffer) == HTTP_TYPE) {
+        in->header_buffer = request_head(in, configure);
+        struct epoll_event epollEvent;
+        remote->fd = create_connection(remote_host, remote_port);
+        epollEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
+        epollEvent.data.ptr = remote;
+        epoll_ctl(epollfd, EPOLL_CTL_ADD, remote->fd, &epollEvent);
     }
     
     dataEncode(in->header_buffer, in->header_buffer_len);
     
-    if (remote->fd >= 0)
+    handle_data_complete:
+    if (remote->fd >= 0) {
+        //clientToserver(in);
         tcp_out(remote);
+    }
 
     return;
 }
