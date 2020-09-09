@@ -114,7 +114,7 @@ static void parse_global_module(char *content, conf * p)
             p->process = atoi(val_begin);
         } else if (strcasecmp(var, "timeout") == 0) {
             p->timeout = atoi(val_begin);
-        } else if (strcasecmp(var, "sslencoding") == 0) {
+        } else if (strcasecmp(var, "encode") == 0) {
             p->sslencoding = atoi(val_begin);
         } else if (strcasecmp(var, "tcp_listen") == 0) {
             p->tcp_listen = atoi(val_begin);

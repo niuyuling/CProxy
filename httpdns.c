@@ -13,6 +13,8 @@ char *cachePath = NULL;
 struct dns_cache *cache, *cache_temp;
 socklen_t addr_len = sizeof(dst_addr);
 unsigned int cache_using, cacheLimit;
+dns_t dns_list[DNS_MAX_CONNECTION];
+struct epoll_event evs[DNS_MAX_CONNECTION+1], event;
 
 int read_cache_file()
 {
@@ -152,9 +154,9 @@ void respond_clients()
                 dns_list[i].wait_response_client = 0;
         }
     }
-    ev.events = EPOLLIN;
-    ev.data.fd = dnsListenFd;
-    epoll_ctl(dns_efd, EPOLL_CTL_MOD, dnsListenFd, &ev);
+    event.events = EPOLLIN;
+    event.data.fd = dnsListenFd;
+    epoll_ctl(dns_efd, EPOLL_CTL_MOD, dnsListenFd, &event);
 }
 
 /* 分析DNS请求 */
@@ -245,9 +247,9 @@ int build_dns_response(dns_t * dns)
     }
     if (respond_client(dns) == 1) {
         dns->wait_response_client = 1;
-        ev.events = EPOLLIN | EPOLLOUT;
-        ev.data.fd = dnsListenFd;
-        epoll_ctl(dns_efd, EPOLL_CTL_MOD, dnsListenFd, &ev);
+        event.events = EPOLLIN | EPOLLOUT;
+        event.data.fd = dnsListenFd;
+        epoll_ctl(dns_efd, EPOLL_CTL_MOD, dnsListenFd, &event);
     }
 
     return 0;
@@ -263,9 +265,9 @@ void http_out(dns_t * out)
     if (write_len == out->http_request_len) {
         //puts("write success");
         free(out->http_request);
-        ev.events = EPOLLIN | EPOLLET;
-        ev.data.ptr = out;
-        epoll_ctl(dns_efd, EPOLL_CTL_MOD, out->fd, &ev);
+        event.events = EPOLLIN | EPOLLET;
+        event.data.ptr = out;
+        epoll_ctl(dns_efd, EPOLL_CTL_MOD, out->fd, &event);
     } else if (write_len > 0) {
         //puts("write a little");
         out->http_request_len -= write_len;
@@ -414,9 +416,9 @@ void new_client(conf *configure)
     dns->http_request_len = strlen(dns->http_request);
     //printf("%s\n", dns->http_request);
     
-    ev.events = EPOLLOUT | EPOLLERR | EPOLLET;
-    ev.data.ptr = dns;
-    epoll_ctl(dns_efd, EPOLL_CTL_ADD, dns->fd, &ev);
+    event.events = EPOLLOUT | EPOLLERR | EPOLLET;
+    event.data.ptr = dns;
+    epoll_ctl(dns_efd, EPOLL_CTL_ADD, dns->fd, &event);
 }
 
 void *httpdns_loop(void *p)
@@ -430,9 +432,9 @@ void *httpdns_loop(void *p)
         perror("epoll_create");
         return NULL;
     }
-    ev.data.fd = dnsListenFd;
-    ev.events = EPOLLIN;
-    epoll_ctl(dns_efd, EPOLL_CTL_ADD, dnsListenFd, &ev);
+    event.data.fd = dnsListenFd;
+    event.events = EPOLLIN;
+    epoll_ctl(dns_efd, EPOLL_CTL_ADD, dnsListenFd, &event);
     memset(dns_list, 0, sizeof(dns_list));
 
     while (1) {

@@ -14,6 +14,9 @@
 struct epoll_event ev, events[MAX_CONNECTION + 1];
 int epollfd, server_sock;
 conn cts[MAX_CONNECTION];
+int local_port;
+char local_host[128];
+int process;
 
 int create_connection(char *remote_host, int remote_port)
 {
@@ -227,6 +230,7 @@ void _main(int argc, char *argv[])
     char executable_filename[PATH_SIZE] = { 0 };
     (void)get_executable_path(path, executable_filename, sizeof(path));
     char *inifile = "/CProxy.conf";
+    struct rlimit rt;
     inifile = strcat(path, inifile);
     conf *configure = (struct CONF *)malloc(sizeof(struct CONF));
     memset(configure, 0, sizeof(struct CONF));
@@ -314,6 +318,12 @@ void _main(int argc, char *argv[])
         }
     }
 
+    // 设置每个进程允许打开的最大文件数
+    rt.rlim_max = rt.rlim_cur = MAX_CONNECTION * 2;
+    if (setrlimit(RLIMIT_NOFILE, &rt) == -1) {
+        perror("setrlimit");
+    }
+
     server_ini();               // 守护进程
     httpdns_initialize(configure); // 初始化http_dns
     memset(cts, 0, sizeof(cts));
@@ -378,4 +388,5 @@ void _main(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     _main(argc, argv);
+    return 0;
 }

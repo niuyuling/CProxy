@@ -43,8 +43,8 @@ struct dns_cache {
     struct dns_cache *next;
 };
 
-dns_t dns_list[DNS_MAX_CONNECTION];
-struct epoll_event evs[DNS_MAX_CONNECTION+1], ev;
+extern dns_t dns_list[DNS_MAX_CONNECTION];
+extern struct epoll_event evs[DNS_MAX_CONNECTION+1], event;
 
 
 void *httpdns_loop(void *p);
