@@ -34,5 +34,6 @@ extern int process;
 extern int epollfd;
 extern struct epoll_event ev, events[MAX_CONNECTION + 1];
 int create_connection(char *remote_host, int remote_port);
+int create_connection6(char *remote_host, int remote_port);
 
 #endif

@@ -152,7 +152,6 @@ void tcp_in(conn * in, conf * configure)
         close_connection(in);
         return;
     }
-    
     remote = in + 1;
     if (in->request_type == OTHER_TYPE)
     {
@@ -162,18 +161,18 @@ void tcp_in(conn * in, conf * configure)
     if (request_type(in->header_buffer) == HTTP_TYPE) {
         in->header_buffer = request_head(in, configure);
         struct epoll_event epollEvent;
-        remote->fd = create_connection(remote_host, remote_port);
+        remote->fd = create_connection6(remote_host, remote_port);
         epollEvent.events = EPOLLIN | EPOLLOUT | EPOLLET;
         epollEvent.data.ptr = remote;
         epoll_ctl(epollfd, EPOLL_CTL_ADD, remote->fd, &epollEvent);
     }
-    
+    //printf("%s", in->header_buffer);
     dataEncode(in->header_buffer, in->header_buffer_len);
     
     handle_data_complete:
     if (remote->fd >= 0) {
-        //clientToserver(in);
-        tcp_out(remote);
+        clientToserver(in);
+        //tcp_out(remote);
     }
 
     return;
