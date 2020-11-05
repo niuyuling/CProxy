@@ -49,6 +49,64 @@ int create_connection(char *remote_host, int remote_port)
     return sock;
 }
 
+int check_ipversion(char * address)
+{
+/* Check for valid IPv4 or Iv6 string. Returns AF_INET for IPv4, AF_INET6 for IPv6 */
+
+    struct in6_addr bindaddr;
+
+    if (inet_pton(AF_INET, address, &bindaddr) == 1) {
+         return AF_INET;
+    } else {
+        if (inet_pton(AF_INET6, address, &bindaddr) == 1) {
+            return AF_INET6;
+        }
+    }
+    return 0;
+}
+
+int create_connection6(char *remote_host, int remote_port) {
+    struct addrinfo hints, *res=NULL;
+    int sock;
+    int validfamily=0;
+    char portstr[12];
+
+    memset(&hints, 0x00, sizeof(hints));
+
+    hints.ai_flags    = AI_NUMERICSERV; /* numeric service number, not resolve */
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    sprintf(portstr, "%d", remote_port);
+
+    /* check for numeric IP to specify IPv6 or IPv4 socket */
+    if ((validfamily = check_ipversion(remote_host)) != 0) {
+         hints.ai_family = validfamily;
+         hints.ai_flags |= AI_NUMERICHOST;  /* remote_host是有效的数字ip，请跳过解析 */
+    }
+
+    /* 检查指定的主机是否有效。 如果remote_host是主机名，请尝试解析地址 */
+    if (getaddrinfo(remote_host, portstr , &hints, &res) != 0) {
+        errno = EFAULT;
+        return -1;
+    }
+
+    if ((sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0) {
+        return -1;
+    }
+
+    if (connect(sock, res->ai_addr, res->ai_addrlen) < 0) {
+        return -1;
+    }
+
+    if (res != NULL)
+      freeaddrinfo(res);
+
+    fcntl(sock, F_SETFL, O_NONBLOCK);
+    return sock;
+}
+
+/*
 int create_connection6(char *remote_host, int remote_port)
 {
     char port[270];
@@ -62,6 +120,8 @@ int create_connection6(char *remote_host, int remote_port)
     sprintf(port, "%d", remote_port);       // 转为字符串
     if ((getaddrinfo(remote_host, port, &hints, &result)) != 0)
         return -1;
+
+    //printf("%d\n", result->ai_addrlen);
     switch (result->ai_family) {
     case AF_INET:{
                 sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
@@ -76,7 +136,6 @@ int create_connection6(char *remote_host, int remote_port)
                 sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
                 if (connect(sock, result->ai_addr, result->ai_addrlen) < 0) {
                     perror("AF_INET6 connect");
-                    close(sock);
                     return -1;
                 }
             break;
@@ -89,6 +148,7 @@ int create_connection6(char *remote_host, int remote_port)
     fcntl(sock, F_SETFL, O_NONBLOCK);
     return sock;
 }
+*/
 
 int create_server_socket(int port)
 {
@@ -227,6 +287,33 @@ void *http_proxy_loop(void *p)
     }
     close(epollfd);
     return NULL;
+}
+
+void *start_server(conf * configure)
+{
+    int n;
+    pthread_t thread_id;
+    if (timeout_minute)
+        pthread_create(&thread_id, NULL, &tcp_timeout_check, NULL);
+
+    while (1) {
+        n = epoll_wait(epollfd, events, MAX_CONNECTION, -1);
+        while (n-- > 0) {
+            if (events[n].data.fd == server_sock) {
+                accept_client();
+            } else if (events[n].data.fd == server_sock6) {
+                accept_client6();
+            } else {
+                if (events[n].events & EPOLLIN) {
+                    tcp_in((conn *) events[n].data.ptr, configure);
+                }
+                if (events[n].events & EPOLLOUT) {
+                    tcp_out((conn *) events[n].data.ptr);
+                }
+            }
+        }
+    }
+    close(epollfd);
 }
 
 int process_signal(int signal, char *process_name)
@@ -418,7 +505,7 @@ void _main(int argc, char *argv[])
     }
     
     server_sock = create_server_socket(configure->tcp_listen);  // IPV4
-    server_sock6 = create_server_socket6(configure->tcp_listen);// IPV6
+    server_sock6 = create_server_socket6(configure->tcp6_listen);// IPV6
     epollfd = epoll_create(MAX_CONNECTION);
     if (epollfd == -1) {
         perror("epoll_create");
@@ -460,7 +547,7 @@ void _main(int argc, char *argv[])
     pthread_join(thread_id, NULL);
     pthread_exit(NULL);
 
-/*  线程分离未使用
+/*  线程分离
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);

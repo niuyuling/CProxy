@@ -16,6 +16,7 @@ typedef struct CONF {
     int sslencoding;
     //int server_port;
     int tcp_listen;
+    int tcp6_listen;
     int dns_listen;
 
     // http module

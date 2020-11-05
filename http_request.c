@@ -319,6 +319,7 @@ char *request_head(conn * in, conf * configure)
         char https_del_copy[configure->https_del_len * 2];
         char *result = NULL;
 
+        memset(remote_host, 0, 270);
         if (configure->https_port > 0)
             remote_port = configure->https_port;
         if (configure->https_ip != NULL)
@@ -360,23 +361,25 @@ char *request_head(conn * in, conf * configure)
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, http_request->host, http_request->host_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[port]", 6, http_request->port, http_request->port_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[H]", 3, http_request->H, http_request->H_len);
-        //printf("%s", incomplete_head);    // 打印HTTP HEADER
+        printf("%s", incomplete_head);    // 打印HTTP HEADER
 
         memset(in->header_buffer, 0, strlen(in->header_buffer));
         strcpy(in->header_buffer, incomplete_head);
         in->header_buffer_len = strlen(in->header_buffer);
         free(incomplete_head);
 
-    } else if (strncmp(in->header_buffer, "GET", 3) == 0 || strncmp(in->header_buffer, "POST", 4) == 0) {
+    } else {
         char *incomplete_head;
         int incomplete_head_len;
         char http_del_copy[configure->http_del_len];
         char *result = NULL;
 
+        memset(remote_host, 0, 270);
         if (configure->http_port > 0)
             remote_port = configure->http_port;
         if (configure->http_ip != NULL)
-            memmove(remote_host, configure->http_ip, strlen(configure->http_ip));
+            strcpy(remote_host, configure->http_ip);
+            //memmove(remote_host, configure->http_ip, strlen(configure->http_ip));
         incomplete_head = (char *)malloc(sizeof(char) * (BUFFER_SIZE));
         if (incomplete_head == NULL) {
             free(incomplete_head);

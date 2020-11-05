@@ -3,7 +3,7 @@
 
 int sslEncodeCode;
 int remote_port;
-char remote_host[128];
+char remote_host[270];
 
 /* 对数据进行编码 */
 void dataEncode(char *data, int data_len)

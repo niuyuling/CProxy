@@ -8,7 +8,7 @@
 #define OTHER_TYPE 1
 
 extern int remote_port;
-extern char remote_host[128];
+extern char remote_host[270];
 extern int sslEncodeCode;
 
 typedef struct conn_t {

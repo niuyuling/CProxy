@@ -118,6 +118,8 @@ static void parse_global_module(char *content, conf * p)
             p->sslencoding = atoi(val_begin);
         } else if (strcasecmp(var, "tcp_listen") == 0) {
             p->tcp_listen = atoi(val_begin);
+        } else if (strcasecmp(var, "tcp6_listen") == 0) {
+            p->tcp6_listen = atoi(val_begin);
         } else if (strcasecmp(var, "dns_listen") == 0) {
             p->dns_listen = atoi(val_begin);
         }
