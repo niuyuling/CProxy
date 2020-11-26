@@ -13,7 +13,7 @@
 
 struct epoll_event ev, events[MAX_CONNECTION + 1];
 int epollfd, server_sock, server_sock6;
-conn cts[MAX_CONNECTION];
+conn_t cts[MAX_CONNECTION];
 int local_port;
 char local_host[128];
 int process;
@@ -48,107 +48,6 @@ int create_connection(char *remote_host, int remote_port)
     fcntl(sock, F_SETFL, O_NONBLOCK);
     return sock;
 }
-
-int check_ipversion(char * address)
-{
-/* Check for valid IPv4 or Iv6 string. Returns AF_INET for IPv4, AF_INET6 for IPv6 */
-
-    struct in6_addr bindaddr;
-
-    if (inet_pton(AF_INET, address, &bindaddr) == 1) {
-         return AF_INET;
-    } else {
-        if (inet_pton(AF_INET6, address, &bindaddr) == 1) {
-            return AF_INET6;
-        }
-    }
-    return 0;
-}
-
-int create_connection6(char *remote_host, int remote_port) {
-    struct addrinfo hints, *res=NULL;
-    int sock;
-    int validfamily=0;
-    char portstr[12];
-
-    memset(&hints, 0x00, sizeof(hints));
-
-    hints.ai_flags    = AI_NUMERICSERV; /* numeric service number, not resolve */
-    hints.ai_family   = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-
-    sprintf(portstr, "%d", remote_port);
-
-    /* check for numeric IP to specify IPv6 or IPv4 socket */
-    if ((validfamily = check_ipversion(remote_host)) != 0) {
-         hints.ai_family = validfamily;
-         hints.ai_flags |= AI_NUMERICHOST;  /* remote_host是有效的数字ip，请跳过解析 */
-    }
-
-    /* 检查指定的主机是否有效。 如果remote_host是主机名，请尝试解析地址 */
-    if (getaddrinfo(remote_host, portstr , &hints, &res) != 0) {
-        errno = EFAULT;
-        return -1;
-    }
-
-    if ((sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0) {
-        return -1;
-    }
-
-    if (connect(sock, res->ai_addr, res->ai_addrlen) < 0) {
-        return -1;
-    }
-
-    if (res != NULL)
-      freeaddrinfo(res);
-
-    fcntl(sock, F_SETFL, O_NONBLOCK);
-    return sock;
-}
-
-/*
-int create_connection6(char *remote_host, int remote_port)
-{
-    char port[270];
-    int sock = -1;
-    struct addrinfo *result;
-    struct addrinfo hints;
-    bzero(&hints, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
-    
-    memset(port, 0, 270);
-    sprintf(port, "%d", remote_port);       // 转为字符串
-    if ((getaddrinfo(remote_host, port, &hints, &result)) != 0)
-        return -1;
-
-    //printf("%d\n", result->ai_addrlen);
-    switch (result->ai_family) {
-    case AF_INET:{
-                sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-                if (connect(sock, result->ai_addr, result->ai_addrlen) < 0) {
-                    perror("AF_INET connect");
-                    close(sock);
-                    return -1;
-                }
-            break;
-        }
-    case AF_INET6:{
-                sock = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-                if (connect(sock, result->ai_addr, result->ai_addrlen) < 0) {
-                    perror("AF_INET6 connect");
-                    return -1;
-                }
-            break;
-        }
-    default:
-        printf("Unknown\n");
-        break;
-    }
-    freeaddrinfo(result);
-    fcntl(sock, F_SETFL, O_NONBLOCK);
-    return sock;
-}
-*/
 
 int create_server_socket(int port)
 {
@@ -220,7 +119,7 @@ void accept_client()
 {
     struct epoll_event epollEvent;
     struct sockaddr_in addr;
-    conn *client;
+    conn_t *client;
     socklen_t addr_len = sizeof(addr);
 
     // 偶数为客户端,奇数为服务端
@@ -243,7 +142,7 @@ void accept_client6()
 {
     struct epoll_event epollEvent;
     struct sockaddr_in6 addr;
-    conn *client;
+    conn_t *client;
     socklen_t addr_len = sizeof(addr);
 
     // 偶数为客户端,奇数为服务端
@@ -267,20 +166,38 @@ void *http_proxy_loop(void *p)
     conf *configure = (conf *) p;
     int n;
 
+
+    ev.events = EPOLLIN;
+    ev.data.fd = server_sock;
+    if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock, &ev)) {
+        exit(1);
+    }
+
+    ev.events = EPOLLIN;
+    ev.data.fd = server_sock6;
+    if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock6, &ev)) {
+        exit(1);
+    }
+    
     while (1) {
         n = epoll_wait(epollfd, events, MAX_CONNECTION, -1);
         while (n-- > 0) {
-            if (events[n].data.fd == server_sock) {
-                accept_client();
-            }
-            else if (events[n].data.fd == server_sock6) {
+            if (events[n].data.fd == server_sock6) {
+                //printf("accept_client6()!!!\n");
                 accept_client6();
+                ;
+            }
+            else if (events[n].data.fd == server_sock) {
+                //printf("accept_client()!!!\n");
+                accept_client();
             } else {
                 if (events[n].events & EPOLLIN) {
-                    tcp_in((conn *) events[n].data.ptr, configure);
+                    //printf("tcp_in()!!!\n");
+                    tcp_in((conn_t *) events[n].data.ptr, configure);
                 }
                 if (events[n].events & EPOLLOUT) {
-                    tcp_out((conn *) events[n].data.ptr);
+                    //printf("tcp_out()!!!\n");
+                    tcp_out((conn_t *) events[n].data.ptr);
                 }
             }
         }
@@ -305,10 +222,10 @@ void *start_server(conf * configure)
                 accept_client6();
             } else {
                 if (events[n].events & EPOLLIN) {
-                    tcp_in((conn *) events[n].data.ptr, configure);
+                    tcp_in((conn_t *) events[n].data.ptr, configure);
                 }
                 if (events[n].events & EPOLLOUT) {
-                    tcp_out((conn *) events[n].data.ptr);
+                    tcp_out((conn_t *) events[n].data.ptr);
                 }
             }
         }
@@ -383,10 +300,12 @@ int get_executable_path(char *processdir, char *processname, int len)
 void server_ini()
 {
     signal(SIGPIPE, SIG_IGN);   // 忽略PIPE信号
+
     if (daemon(1, 1)) {
         perror("daemon");
         return;
     }
+
     //while (process-- > 1 && fork() == 0);
 }
 
@@ -490,15 +409,15 @@ void _main(int argc, char *argv[])
         perror("setrlimit");
     }
 
-    server_ini();               // 守护进程
-    httpdns_initialize(configure); // 初始化http_dns
+    server_ini();                  // 守护进程
+    httpdns_initialize(configure); // 初始化httpdns
     memset(cts, 0, sizeof(cts));
     for (i = MAX_CONNECTION; i--;)
         cts[i].fd = -1;
     // 为服务端的结构体分配内存
     for (i = 1; i < MAX_CONNECTION; i += 2) {
-        cts[i].header_buffer = (char *)malloc(BUFFER_SIZE);
-        if (cts[i].header_buffer == NULL) {
+        cts[i].ready_data = (char *)malloc(BUFFER_SIZE);
+        if (cts[i].ready_data == NULL) {
             fputs("out of memory.", stderr);
             exit(1);
         }
@@ -511,19 +430,8 @@ void _main(int argc, char *argv[])
         perror("epoll_create");
         exit(1);
     }
-    static struct epoll_event event;
-    event.events = EPOLLIN;
-    event.data.fd = server_sock;
-    if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock, &event)) {
-        exit(1);
-    }
-    
-    event.events = EPOLLIN;
-    event.data.fd = server_sock6;
-    if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock6, &event)) {
-        exit(1);
-    }
-    
+
+
     if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1) // 设置uid
         exit(1);
 

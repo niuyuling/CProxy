@@ -1,7 +1,7 @@
 CROSS_COMPILE ?= 
 CC := $(CROSS_COMPILE)gcc
 STRIP := $(CROSS_COMPILE)strip
-CFLAGS += -g -O2 -Wall -pthread
+CFLAGS += -g -O2 -Wall -pthread -static
 LIBS = 
 OBJ := CProxy
 
