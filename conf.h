@@ -44,8 +44,7 @@ typedef struct CONF {
 
     char *https_regrep_aim, *https_regrep_obj;
     int https_regrep_aim_len, https_regrep_obj_len;
-    
-        
+
     // http dns_listen
     char *addr;
     char *http_req;
@@ -56,6 +55,5 @@ typedef struct CONF {
 char *strncpy_(char *dest, const char *src, size_t n);
 void read_conf(char *file, conf * p);
 void free_conf(conf * p);
-
 
 #endif

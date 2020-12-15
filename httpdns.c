@@ -14,7 +14,7 @@ struct dns_cache *cache, *cache_temp;
 socklen_t addr_len = sizeof(dst_addr);
 unsigned int cache_using, cacheLimit;
 dns_t dns_list[DNS_MAX_CONNECTION];
-struct epoll_event evs[DNS_MAX_CONNECTION+1], event;
+struct epoll_event evs[DNS_MAX_CONNECTION + 1], event;
 
 int read_cache_file()
 {
@@ -341,7 +341,7 @@ error:
         in->query_type = 0;
 }
 
-void new_client(conf *configure)
+void new_client(conf * configure)
 {
     dns_t *dns;
     int i, len;
@@ -415,7 +415,7 @@ void new_client(conf *configure)
     dns->http_request = replace(dns->http_request, &http_request_len, "\\n", 2, "\n", 1);
     dns->http_request_len = strlen(dns->http_request);
     //printf("%s\n", dns->http_request);
-    
+
     event.events = EPOLLOUT | EPOLLERR | EPOLLET;
     event.data.ptr = dns;
     epoll_ctl(dns_efd, EPOLL_CTL_ADD, dns->fd, &event);
@@ -460,7 +460,7 @@ void *httpdns_loop(void *p)
             }
         }
     }
-    
+
     return NULL;
 }
 
@@ -484,21 +484,21 @@ int udp_listen(char *ip, int port)
     return fd;
 }
 
-int httpdns_initialize(conf * configure) {
+int httpdns_initialize(conf * configure)
+{
     char *p;
     p = strchr(configure->addr, ':');
     host_value = configure->addr;
     *p = '\0';
     //printf("udp: %s %d %d\n", configure->addr, configure->dns_listen, atoi(p+1));
-    
+
     dnsListenFd = udp_listen("0.0.0.0", configure->dns_listen);
     dst_addr.sin_addr.s_addr = inet_addr(configure->addr);
     dst_addr.sin_family = AF_INET;
-    dst_addr.sin_port = htons(atoi(p+1));
+    dst_addr.sin_port = htons(atoi(p + 1));
 
     signal(SIGPIPE, SIG_IGN);
     signal(SIGTERM, write_dns_cache);
     host_value_len = strlen(host_value);
     return 0;
 }
-

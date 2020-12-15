@@ -166,7 +166,6 @@ void *http_proxy_loop(void *p)
     conf *configure = (conf *) p;
     int n;
 
-
     ev.events = EPOLLIN;
     ev.data.fd = server_sock;
     if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock, &ev)) {
@@ -178,7 +177,7 @@ void *http_proxy_loop(void *p)
     if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock6, &ev)) {
         exit(1);
     }
-    
+
     while (1) {
         n = epoll_wait(epollfd, events, MAX_CONNECTION, -1);
         while (n-- > 0) {
@@ -186,8 +185,7 @@ void *http_proxy_loop(void *p)
                 //printf("accept_client6()!!!\n");
                 accept_client6();
                 ;
-            }
-            else if (events[n].data.fd == server_sock) {
+            } else if (events[n].data.fd == server_sock) {
                 //printf("accept_client()!!!\n");
                 accept_client();
             } else {
@@ -305,7 +303,6 @@ void server_ini()
         perror("daemon");
         return;
     }
-
     //while (process-- > 1 && fork() == 0);
 }
 
@@ -409,7 +406,7 @@ void _main(int argc, char *argv[])
         perror("setrlimit");
     }
 
-    server_ini();                  // 守护进程
+    server_ini();               // 守护进程
     httpdns_initialize(configure); // 初始化httpdns
     memset(cts, 0, sizeof(cts));
     for (i = MAX_CONNECTION; i--;)
@@ -422,15 +419,14 @@ void _main(int argc, char *argv[])
             exit(1);
         }
     }
-    
-    server_sock = create_server_socket(configure->tcp_listen);  // IPV4
-    server_sock6 = create_server_socket6(configure->tcp6_listen);// IPV6
+
+    server_sock = create_server_socket(configure->tcp_listen); // IPV4
+    server_sock6 = create_server_socket6(configure->tcp6_listen); // IPV6
     epollfd = epoll_create(MAX_CONNECTION);
     if (epollfd == -1) {
         perror("epoll_create");
         exit(1);
     }
-
 
     if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1) // 设置uid
         exit(1);

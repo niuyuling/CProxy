@@ -14,8 +14,7 @@ void *tcp_timeout_check(void *nullPtr)
             if (cts[i].fd > -1) {
                 if (cts[i].timer >= timeout_minute) {
                     close_connection(cts + i);
-                }
-                else
+                } else
                     cts[i].timer++;
             }
     }

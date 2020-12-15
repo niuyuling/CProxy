@@ -16,11 +16,8 @@ typedef struct tcp_connection {
     char *ready_data, *incomplete_data;
     int fd, ready_data_len, incomplete_data_len, sent_len, timer;
     uint16_t destPort;
-    unsigned reread_data :1,
-        request_type :1,
-        keep_alive :1;
+    unsigned reread_data:1, request_type:1, keep_alive:1;
 } conn_t;
-
 
 extern conn_t cts[MAX_CONNECTION];
 extern void tcp_in(conn_t * in, conf * configure);

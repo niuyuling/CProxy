@@ -347,7 +347,7 @@ void free_conf(conf * p)
         free(p->https_regrep_aim);
     if (p->https_regrep_obj)
         free(p->https_regrep_obj);
-    
+
     if (p->addr)
         free(p->addr);
     if (p->http_req)
@@ -392,7 +392,7 @@ void read_conf(char *filename, conf * configure)
         perror("read https module error");
     parse_https_module(https_content, configure);
     free(https_content);
-    
+
     if ((httpdns_content = read_module(buff, "httpdns")) == NULL)
         perror("read httpdns module error");
     parse_httpdns_module(httpdns_content, configure);

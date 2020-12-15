@@ -160,6 +160,17 @@ int extract_host(char *header, char *host, char *port)
 {
     char *_p = strstr(header, "CONNECT"); // 在 CONNECT 方法中解析 隧道主机名称及端口号
     if (_p) {
+
+        if (strchr(header, '[') || strchr(header, ']')) { // IPv6
+            char *_p1 = strchr(header, '[');
+            char *_p2 = strchr(_p1 + 1, ']');
+
+            strncpy(host, _p1 + 1, (int)(_p2 - _p1) - 1);
+            remote_port = 443;
+
+            return 0;
+        }
+
         char *_p1 = strchr(_p, ' ');
         char *_p2 = strchr(_p1 + 1, ':');
         char *_p3 = strchr(_p1 + 1, ' ');
@@ -379,7 +390,7 @@ char *request_head(conn_t * in, conf * configure)
             remote_port = configure->http_port;
         if (configure->http_ip != NULL)
             strcpy(remote_host, configure->http_ip);
-            //memmove(remote_host, configure->http_ip, strlen(configure->http_ip));
+        //memmove(remote_host, configure->http_ip, strlen(configure->http_ip));
         incomplete_head = (char *)malloc(sizeof(char) * (BUFFER_SIZE));
         if (incomplete_head == NULL) {
             free(incomplete_head);
