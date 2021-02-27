@@ -3,7 +3,7 @@
 
 int sslEncodeCode;
 int remote_port;
-char remote_host[270];
+char remote_host[CACHE_SIZE];
 
 /* 对数据进行编码 */
 void dataEncode(char *data, int data_len)
@@ -115,7 +115,20 @@ void clientToserver(conn_t * in)
 // 判断请求类型
 static int8_t request_type(char *data)
 {
-    if (strncmp(data, "GET", 3) == 0 || strncmp(data, "POST", 4) == 0 || strncmp(data, "CONNECT", 7) == 0 || strncmp(data, "HEAD", 4) == 0 || strncmp(data, "PUT", 3) == 0 || strncmp(data, "OPTIONS", 7) == 0 || strncmp(data, "MOVE", 4) == 0 || strncmp(data, "COPY", 4) == 0 || strncmp(data, "TRACE", 5) == 0 || strncmp(data, "DELETE", 6) == 0 || strncmp(data, "LINK", 4) == 0 || strncmp(data, "UNLINK", 6) == 0 || strncmp(data, "PATCH", 5) == 0 || strncmp(data, "WRAPPED", 7) == 0)
+    if (strncmp(data, "GET", 3) == 0 || 
+        strncmp(data, "POST", 4) == 0 || 
+        strncmp(data, "CONNECT", 7) == 0 || 
+        strncmp(data, "HEAD", 4) == 0 || 
+        strncmp(data, "PUT", 3) == 0 || 
+        strncmp(data, "OPTIONS", 7) == 0 || 
+        strncmp(data, "MOVE", 4) == 0 || 
+        strncmp(data, "COPY", 4) == 0 || 
+        strncmp(data, "TRACE", 5) == 0 || 
+        strncmp(data, "DELETE", 6) == 0 || 
+        strncmp(data, "LINK", 4) == 0 || 
+        strncmp(data, "UNLINK", 6) == 0 || 
+        strncmp(data, "PATCH", 5) == 0 || 
+        strncmp(data, "WRAPPED", 7) == 0)
         return HTTP_TYPE;
     return OTHER_TYPE;
 }
@@ -140,7 +153,7 @@ int create_connection6(char *remote_host, int remote_port)
     struct addrinfo hints, *res = NULL;
     int sock;
     int validfamily = 0;
-    char portstr[270];
+    char portstr[CACHE_SIZE];
 
     memset(&hints, 0x00, sizeof(hints));
 
@@ -237,7 +250,6 @@ void tcp_in(conn_t * in, conf * configure)
         ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
         ev.data.ptr = server;
         epoll_ctl(epollfd, EPOLL_CTL_ADD, server->fd, &ev);
-
     }
 
     if (in->incomplete_data == NULL || copy_data(in) != 0) {

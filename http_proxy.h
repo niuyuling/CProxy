@@ -9,7 +9,7 @@
 #define OTHER_TYPE 1
 
 extern int remote_port;
-extern char remote_host[270];
+extern char remote_host[CACHE_SIZE];
 extern int sslEncodeCode;
 
 typedef struct tcp_connection {

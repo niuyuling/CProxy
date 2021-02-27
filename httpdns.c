@@ -20,7 +20,9 @@ int read_cache_file()
 {
     char *buff, *answer, *question;
     long file_size;
+    int fn;
 
+    fn = 0;
     cache = cache_temp = NULL;
     cache_using = 0;
     if ((cfp = fopen(cachePath, "rb+")) == NULL) {
@@ -36,7 +38,9 @@ int read_cache_file()
         return 1;
     }
     rewind(cfp);
-    fread(buff, file_size, 1, cfp);
+    if ((fn = fread(buff, file_size, 1, cfp)) < 0) {
+        perror("fread");
+    }
 
     //读取缓存，一组缓存的内容为[ipDomain\0]，其中ip占5字节
     for (answer = buff; answer - buff < file_size; answer = question + cache->question_len + 2) {

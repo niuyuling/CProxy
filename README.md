@@ -1,11 +1,13 @@
-### CProxy
+# CProxy
+
     EPOLL多路复用IO, Android/Linux本地二级代理.  
     可以修改HTTP协议消息头(request).  
     可以修改HTTP协议CONNECT方法消息头.  
     可以修改HTTP协议GET方法消息头.  
-    初步支持IPV6.
+    支持IPV6.
 
-### Build
+## Build
+
     Linux编译:  
     git clone https://github.com/niuyuling/CProxy.git  
     cd CProxy  
@@ -18,20 +20,18 @@
     Android NDK 编译:  
     ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=Application.mk APP_BUILD_SCRIPT=Android.mk  
 
-### Help Information
+## Help Information
+
     CProxy proxy server
     Author: aixiao@aixiao.me
-    Usage: [-?hpt] [-s signal] [-c filename]
+    Usage: [-?h] [-s signal] [-c filename]
 
     Options:
-        -p --process           : process number
-        -t --timeout           : timeout minute
-        -e --coding            : ssl coding, [0-128]
         -s --signal            : send signal to a master process: stop, quit, restart, reload, status
         -c --config            : set configuration file, default: CProxy.conf
         -? -h --? --help       : help information
 
-    Mar 22 2020 09:29:11 Compile、link.
+    Dec 19 2020 09:18:15 Compile、link.
 
     #启动
     ./CProxy -c CProxy.conf
@@ -43,4 +43,3 @@
     ./CProxy -s restart -c CProxy.conf
     #状态(只打印 Pid)
     ./CProxy -s status
-    

@@ -26,9 +26,10 @@
 #define BUFFER_SIZE 8192
 #define PATH_SIZE 270
 #define CACHE_SIZE 270
+#define HTTP_HEAD_CACHE_SIZE 1024
 
 extern int local_port;
-extern char local_host[128];
+extern char local_host[CACHE_SIZE];
 extern int process;
 
 extern int epollfd;

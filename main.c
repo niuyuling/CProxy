@@ -15,7 +15,7 @@ struct epoll_event ev, events[MAX_CONNECTION + 1];
 int epollfd, server_sock, server_sock6;
 conn_t cts[MAX_CONNECTION];
 int local_port;
-char local_host[128];
+char local_host[CACHE_SIZE];
 int process;
 
 int create_connection(char *remote_host, int remote_port)
@@ -182,24 +182,20 @@ void *http_proxy_loop(void *p)
         n = epoll_wait(epollfd, events, MAX_CONNECTION, -1);
         while (n-- > 0) {
             if (events[n].data.fd == server_sock6) {
-                //printf("accept_client6()!!!\n");
                 accept_client6();
-                ;
             } else if (events[n].data.fd == server_sock) {
-                //printf("accept_client()!!!\n");
                 accept_client();
             } else {
                 if (events[n].events & EPOLLIN) {
-                    //printf("tcp_in()!!!\n");
                     tcp_in((conn_t *) events[n].data.ptr, configure);
                 }
                 if (events[n].events & EPOLLOUT) {
-                    //printf("tcp_out()!!!\n");
                     tcp_out((conn_t *) events[n].data.ptr);
                 }
             }
         }
     }
+    
     close(epollfd);
     return NULL;
 }
@@ -208,6 +204,20 @@ void *start_server(conf * configure)
 {
     int n;
     pthread_t thread_id;
+    
+    ev.events = EPOLLIN;
+    ev.data.fd = server_sock;
+    if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock, &ev)) {
+        perror("epoll_ctl");
+        exit(1);
+    }
+    ev.events = EPOLLIN;
+    ev.data.fd = server_sock6;
+    if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock6, &ev)) {
+        perror("epoll_ctl");
+        exit(1);
+    }
+    
     if (timeout_minute)
         pthread_create(&thread_id, NULL, &tcp_timeout_check, NULL);
 
@@ -228,7 +238,9 @@ void *start_server(conf * configure)
             }
         }
     }
+    
     close(epollfd);
+    return NULL;
 }
 
 int process_signal(int signal, char *process_name)
@@ -266,9 +278,9 @@ int process_signal(int signal, char *process_name)
     }
     closedir(dir);
 
-    if (signal == SERVER_STATUS) { // 状态
-        n -= 2;                 // 去除最后一个搜索时的本身进程和最后加一后未使用的
-        for (; n >= 0; n--) {   // 依据数组从大到小的下标打印PID
+    if (signal == SERVER_STATUS) {  // 状态
+        n -= 2;                     // 去除最后一个搜索时的本身进程和最后加一后未使用的
+        for (; n >= 0; n--) {       // 依据数组从大到小的下标打印PID
             printf("\t%d\n", number[n]);
         }
     }
@@ -303,6 +315,7 @@ void server_ini()
         perror("daemon");
         return;
     }
+
     //while (process-- > 1 && fork() == 0);
 }
 
@@ -399,15 +412,15 @@ void _main(int argc, char *argv[])
             ;
         }
     }
-
+    
     // 设置每个进程允许打开的最大文件数
     rt.rlim_max = rt.rlim_cur = MAX_CONNECTION * 2;
     if (setrlimit(RLIMIT_NOFILE, &rt) == -1) {
         perror("setrlimit");
     }
-
-    server_ini();               // 守护进程
-    httpdns_initialize(configure); // 初始化httpdns
+    
+    server_ini();                   // 守护进程
+    httpdns_initialize(configure);  // 初始化httpdns
     memset(cts, 0, sizeof(cts));
     for (i = MAX_CONNECTION; i--;)
         cts[i].fd = -1;
@@ -420,8 +433,8 @@ void _main(int argc, char *argv[])
         }
     }
 
-    server_sock = create_server_socket(configure->tcp_listen); // IPV4
-    server_sock6 = create_server_socket6(configure->tcp6_listen); // IPV6
+    server_sock = create_server_socket(configure->tcp_listen);      // IPV4
+    server_sock6 = create_server_socket6(configure->tcp6_listen);   // IPV6
     epollfd = epoll_create(MAX_CONNECTION);
     if (epollfd == -1) {
         perror("epoll_create");
@@ -430,9 +443,10 @@ void _main(int argc, char *argv[])
 
     if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1) // 设置uid
         exit(1);
-
-    //start_server(configure); // 单线程
-    //httpdns_loop(configure);
+/*
+    start_server(configure); // 单线程
+    httpdns_loop(configure);
+*/
 
     pthread_t thread_id = 0;
     sigset_t signal_mask;
@@ -441,6 +455,7 @@ void _main(int argc, char *argv[])
     if (pthread_sigmask(SIG_BLOCK, &signal_mask, NULL) != 0) {
         printf("block sigpipe error\n");
     }
+    
     if (timeout_minute)
         pthread_create(&thread_id, NULL, &tcp_timeout_check, NULL);
     if (pthread_create(&thread_id, NULL, &http_proxy_loop, (void *)configure) != 0)
