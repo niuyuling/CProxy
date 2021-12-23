@@ -18,6 +18,7 @@ typedef struct CONF {
     int tcp_listen;
     int tcp6_listen;
     int dns_listen;
+    int udp_listen;
 
     // http module
     int http_port;
@@ -45,11 +46,17 @@ typedef struct CONF {
     char *https_regrep_aim, *https_regrep_obj;
     int https_regrep_aim_len, https_regrep_obj_len;
 
-    // http dns_listen
+    // httpdns module
     char *addr;
     char *http_req;
     int http_req_len;
     int encode;
+    
+    // httpudp module
+    char *httpudp_addr;
+    char *httpudp_http_req;
+    int httpudp_http_req_len;
+    int httpudp_encode;
 } conf;
 
 char *strncpy_(char *dest, const char *src, size_t n);

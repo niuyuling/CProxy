@@ -5,14 +5,14 @@ CFLAGS += -g -O2 -Wall -pthread
 LIBS = 
 OBJ := CProxy
 
-all: main.o http_proxy.o httpdns.o http_request.o conf.o timeout.o kill.o help.o
+all: main.o http_proxy.o http_request.o httpdns.o httpudp.o conf.o help.o
 	$(CC) $(CFLAGS) -o $(OBJ) $^ $(LIBS)
 .c.o:
-	$(CC) $(CFLAGS) -c $< $(LIBS)
+	$(CC) $(CFLAGS) -c $<
 
 clean:
 	rm -rf *.o
 	rm $(OBJ)
 
 android:
-	ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=Application.mk APP_BUILD_SCRIPT=Android.mk
+	/usr/lib/android-ndk/ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=Application.mk APP_BUILD_SCRIPT=Android.mk

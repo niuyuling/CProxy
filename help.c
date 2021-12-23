@@ -2,12 +2,12 @@
 
 char help_information(void)
 {
-    static const char name[] = "CProxy";
-    static const char subject[] = "proxy server";
+    static const char name[] = "C";
+    static const char subject[] = "Proxy Server";
     static const struct {
         const char *email;
     } author = {
-        "aixiao@aixiao.me",
+        "AIXIAO@AIXIAO.ME",
     };
 
     static const char usage[] = "Usage: [-?h] [-s signal] [-c filename]";

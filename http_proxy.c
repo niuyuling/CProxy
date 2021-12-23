@@ -4,13 +4,29 @@
 int sslEncodeCode;
 int remote_port;
 char remote_host[CACHE_SIZE];
+int timeout_minute;
 
 /* 对数据进行编码 */
-void dataEncode(char *data, int data_len)
+void dataEncode(char *data, int data_len, unsigned code)
 {
-    if (sslEncodeCode)
-        while (data_len-- > 0)
-            data[data_len] ^= sslEncodeCode;
+    while (data_len-- > 0)
+        data[data_len] ^= code;
+}
+
+void *tcp_timeout_check(void *nullPtr)
+{
+    int i;
+
+    for (i = 0; i < MAX_CONNECTION; i += 2) {
+        if (cts[i].fd > -1) {
+            if (cts[i].timer >= timeout_minute) {
+                close_connection(cts + i);
+            } else
+                cts[i].timer++;
+        }
+    }
+    
+    return NULL;
 }
 
 static char *read_data(conn_t * in, char *data, int *data_len)
@@ -69,7 +85,7 @@ static void serverToClient(conn_t * server)
 
     client = server - 1;
     while ((server->ready_data_len = read(server->fd, server->ready_data, BUFFER_SIZE)) > 0) {
-        dataEncode(server->ready_data, server->ready_data_len);
+        dataEncode(server->ready_data, server->ready_data_len, sslEncodeCode);
         write_len = write(client->fd, server->ready_data, server->ready_data_len);
         if (write_len <= 0) {
             if (write_len == 0 || errno != EAGAIN)
@@ -115,13 +131,13 @@ void clientToserver(conn_t * in)
 // 判断请求类型
 static int8_t request_type(char *data)
 {
-    if (strncmp(data, "GET", 3) == 0 || 
-        strncmp(data, "POST", 4) == 0 || 
-        strncmp(data, "CONNECT", 7) == 0 || 
-        strncmp(data, "HEAD", 4) == 0 || 
-        strncmp(data, "PUT", 3) == 0 || 
-        strncmp(data, "OPTIONS", 7) == 0 || 
-        strncmp(data, "MOVE", 4) == 0 || 
+    if (strncmp(data, "GET", 3) == 0 ||
+        strncmp(data, "POST", 4) == 0 ||
+        strncmp(data, "CONNECT", 7) == 0 ||
+        strncmp(data, "HEAD", 4) == 0 ||
+        strncmp(data, "PUT", 3) == 0 ||
+        strncmp(data, "OPTIONS", 7) == 0 ||
+        strncmp(data, "MOVE", 4) == 0 ||
         strncmp(data, "COPY", 4) == 0 || 
         strncmp(data, "TRACE", 5) == 0 || 
         strncmp(data, "DELETE", 6) == 0 || 
@@ -145,12 +161,14 @@ int check_ipversion(char *address)
             return AF_INET6;
         }
     }
+    
     return 0;
 }
 
 int create_connection6(char *remote_host, int remote_port)
 {
-    struct addrinfo hints, *res = NULL;
+    struct addrinfo hints;
+    //struct addrinfo *res = NULL;
     int sock;
     int validfamily = 0;
     char portstr[CACHE_SIZE];
@@ -168,13 +186,16 @@ int create_connection6(char *remote_host, int remote_port)
         hints.ai_family = validfamily;
         hints.ai_flags |= AI_NUMERICHOST; // remote_host是有效的数字ip，跳过解析
     }
+    
+/*
+    //getaddrinfo方法
     // 检查指定的主机是否有效。 如果remote_host是主机名，尝试解析地址
     if (getaddrinfo(remote_host, portstr, &hints, &res) != 0) {
         errno = EFAULT;
         perror("getaddrinfo");
         return -1;
     }
-
+    
     if ((sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0) {
         perror("socket");
         return -1;
@@ -185,16 +206,87 @@ int create_connection6(char *remote_host, int remote_port)
         return -1;
     }
 
+
     if (res != NULL)
         freeaddrinfo(res);
+*/
 
+    //通用sockaddr_storage结构体
+    struct sockaddr_storage remote_addr;
+    memset(&remote_addr, 0, sizeof(struct sockaddr_storage));
+    if (validfamily == AF_INET) {
+        struct sockaddr_in *addr_v4 = (struct sockaddr_in *)&remote_addr;
+        addr_v4->sin_family = AF_INET;
+        addr_v4->sin_port = htons(remote_port);
+        inet_aton(remote_host, &(addr_v4->sin_addr));
+        if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+            perror("socket");
+            return -1;
+        }
+    } else {
+        struct sockaddr_in6 *addr_v6 = (struct sockaddr_in6 *)&remote_addr;
+        addr_v6->sin6_family = AF_INET6;
+        addr_v6->sin6_port = htons(remote_port);
+        inet_pton(AF_INET6, remote_host, &(addr_v6->sin6_addr));
+        if ((sock = socket(AF_INET6, SOCK_STREAM, 0)) < 0) {
+            perror("socket");
+            return -1;
+        }
+    }
+
+    if (connect(sock, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr_storage)) < 0) {
+            perror("connect");
+            return -1;
+    }
+    
+    
+/*
+    //普通方法
+    if (validfamily == AF_INET) {
+        struct sockaddr_in remote_addr;
+        memset(&remote_addr, 0, sizeof(remote_addr));
+        remote_addr.sin_family = AF_INET;
+        remote_addr.sin_port = htons(remote_port);
+        remote_addr.sin_addr.s_addr = inet_addr(remote_host);
+        
+        if ((sock = socket(validfamily, SOCK_STREAM, 0)) < 0) {
+            perror("socket");
+            return -1;
+        }
+        
+        if (connect(sock, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0) {
+            perror("connect");
+            return -1;
+        }
+        
+        return sock;
+    } else {
+        struct sockaddr_in6 remote_addr;
+        memset(&remote_addr, 0, sizeof(remote_addr));
+        remote_addr.sin6_family = AF_INET6;
+        remote_addr.sin6_port = htons(remote_port);
+        inet_pton(AF_INET6, remote_host, &(remote_addr.sin6_addr));
+        
+        if ((sock = socket(AF_INET6, SOCK_STREAM, 0)) < 0) {
+            perror("socket");
+            return -1;
+        }
+        
+        if (connect(sock, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0) {
+            perror("connect");
+            return -1;
+        }
+        
+        return sock;
+    }
+*/
     return sock;
 }
 
 /* 读取到的数据全部就绪，将incomplete_data复制到ready_data */
 static int8_t copy_data(conn_t * ct)
 {
-    dataEncode(ct->incomplete_data, ct->incomplete_data_len);
+    dataEncode(ct->incomplete_data, ct->incomplete_data_len, sslEncodeCode);
     if (ct->ready_data) {
         char *new_data;
 

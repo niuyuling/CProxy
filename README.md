@@ -4,7 +4,8 @@
     可以修改HTTP协议消息头(request).  
     可以修改HTTP协议CONNECT方法消息头.  
     可以修改HTTP协议GET方法消息头.  
-    支持IPV6.
+    HttpTCP支持IPV4/IPV6.
+    支持HttpDNS、HttpUDP代理
 
 ## Build
 

@@ -1,51 +1,25 @@
-#ifndef _HTTPDNS_
-#define _HTTPDNS_
+#ifndef HTTPDNS_H
+#define HTTPDNS_H
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/epoll.h>
-#include <signal.h>
+#include "main.h"
 
-#include "conf.h"
+#define HTTPDNS_REQUEST "GET /d?dn=[D] HTTP/1.0\r\nHost: [H]\r\n\r\n"
 
-#define DNS_MAX_CONNECTION 256  //此值的大小关系到respod_clients函数的效率
-#define DATA_SIZE 512
-#define HTTP_RSP_SIZE 1024
-
-typedef struct dns_connection {
-    char dns_req[DATA_SIZE];
-    struct sockaddr_in src_addr;
-    char *reply;                //回应内容
-    char *http_request, *host;
-    unsigned int http_request_len, dns_rsp_len;
-    int fd;
-    char query_type;
-    unsigned host_len:7;        //域名最大长度64位
-    unsigned wait_response_client:1; //已构建好DNS回应，等待可写事件
-} dns_t;
-
-struct dns_cache {
-    int question_len;
-    char *question;
-    char *answer;
-    struct dns_cache *next;
+struct httpdns {
+    struct sockaddr_in dst;
+    char *http_req, *original_http_req, *connect_request, *original_connect_request, *cachePath, *ssl_request; //original_http_req, original_connect_request为初始化生成的请求头，用来配合use_hdr语法
+    int http_req_len, original_http_req_len, connect_request_len, original_connect_request_len, cacheLimit, ssl_request_len;
+    unsigned encodeCode,        //Host编码传输
+     httpsProxy_encodeCode,     //CONNECT代理编码
+     tcpDNS_mode:1;             //判断是否开启TCPDNS
 };
 
-extern dns_t dns_list[DNS_MAX_CONNECTION];
-extern struct epoll_event evs[DNS_MAX_CONNECTION + 1], event;
-
-void *httpdns_loop(void *p);
-int httpdns_initialize(conf * configure);
+extern void dns_timeout_check();
+extern void *dns_loop(void *nullPtr);
+extern int8_t read_cache_file();
+extern void dns_init();
+extern struct httpdns httpdns;
+extern pid_t child_pid;
+extern FILE *cfp;
 
 #endif

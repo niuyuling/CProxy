@@ -8,10 +8,6 @@
 #define HTTP_TYPE 0
 #define OTHER_TYPE 1
 
-extern int remote_port;
-extern char remote_host[CACHE_SIZE];
-extern int sslEncodeCode;
-
 typedef struct tcp_connection {
     char *ready_data, *incomplete_data;
     int fd, ready_data_len, incomplete_data_len, sent_len, timer;
@@ -19,12 +15,16 @@ typedef struct tcp_connection {
     unsigned reread_data:1, request_type:1, keep_alive:1;
 } conn_t;
 
+extern int remote_port;
+extern char remote_host[CACHE_SIZE];
+extern int sslEncodeCode;
 extern conn_t cts[MAX_CONNECTION];
 extern void tcp_in(conn_t * in, conf * configure);
 extern void tcp_out(conn_t * out);
 extern void close_connection(conn_t * conn);
-
 extern char *request_head(conn_t * in, conf * configure);
-void dataEncode(char *data, int data_len);
+extern void dataEncode(char *data, int data_len, unsigned code);
+extern int timeout_minute;
+void *tcp_timeout_check(void *nullPtr);
 
 #endif

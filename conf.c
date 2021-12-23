@@ -15,6 +15,28 @@ char *strncpy_(char *dest, const char *src, size_t n)
     }
 }
 
+/* 字符串预处理，设置转义字符 */
+static void string_pretreatment(char *str, int *len)
+{
+    char *lf, *p, *ori_strs[] = { "\\r", "\\n", "\\b", "\\v", "\\f", "\\t", "\\a", "\\b", "\\0" }, to_chrs[] = { '\r', '\n', '\b', '\v', '\f', '\t', '\a', '\b', '\0' };
+    int i;
+
+    while ((lf = strchr(str, '\n')) != NULL) {
+        for (p = lf + 1; *p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'; p++)
+            *len -= 1;
+        strcpy(lf, p);
+        *len -= 1;
+    }
+    for (i = 0; i < sizeof(to_chrs); i++) {
+        for (p = strstr(str, ori_strs[i]); p; p = strstr(p, ori_strs[i])) {
+            //支持\\r
+            *(p - 1) == '\\' ? (*p--) : (*p = to_chrs[i]);
+            memmove(p + 1, p + 2, strlen(p + 2));
+            (*len)--;
+        }
+    }
+}
+
 /* 在content中，设置变量(var)的首地址，值(val)的位置首地址和末地址，返回下一行指针 */
 static char *set_var_val_lineEnd(char *content, char **var, char **val_begin, char **val_end)
 {
@@ -71,6 +93,69 @@ static char *set_var_val_lineEnd(char *content, char **var, char **val_begin, ch
         val_len = strlen(*val_begin);
         *val_end = lineEnd = *val_begin + val_len;
     }
+    //string_pretreatment(*val_begin, &val_len);
+    *val_end = *val_begin + val_len;
+    //printf("var[%s]\nbegin[%s]\n\n", *var, *val_begin);
+    return lineEnd;
+}
+
+/* 在content中，设置变量(var)的首地址，值(val)的位置首地址和末地址，返回下一行指针 */
+static char *set_var_val_lineEnd2(char *content, char **var, char **val_begin, char **val_end)
+{
+    char *p, *pn, *lineEnd;
+    ;
+    int val_len;
+
+    while (1) {
+        if (content == NULL)
+            return NULL;
+
+        for (; *content == ' ' || *content == '\t' || *content == '\r' || *content == '\n'; content++) ;
+        if (*content == '\0')
+            return NULL;
+        *var = content;
+        pn = strchr(content, '\n');
+        p = strchr(content, '=');
+        if (p == NULL) {
+            if (pn) {
+                content = pn + 1;
+                continue;
+            } else
+                return NULL;
+        }
+        content = p;
+        //将变量以\0结束
+        for (p--; *p == ' ' || *p == '\t'; p--) ;
+        *(p + 1) = '\0';
+        //值的首地址
+        for (content++; *content == ' ' || *content == '\t'; content++) ;
+        if (*content == '\0')
+            return NULL;
+        //双引号引起来的值支持换行
+        if (*content == '"') {
+            *val_begin = content + 1;
+            *val_end = strstr(*val_begin, "\";");
+            if (*val_end != NULL)
+                break;
+        } else
+            *val_begin = content;
+        *val_end = strchr(content, ';');
+        if (pn && *val_end > pn) {
+            content = pn + 1;
+            continue;
+        }
+        break;
+    }
+
+    if (*val_end) {
+        **val_end = '\0';
+        val_len = *val_end - *val_begin;
+        lineEnd = *val_end;
+    } else {
+        val_len = strlen(*val_begin);
+        *val_end = lineEnd = *val_begin + val_len;
+    }
+    string_pretreatment(*val_begin, &val_len);
     *val_end = *val_begin + val_len;
     //printf("var[%s]\nbegin[%s]\n\n", *var, *val_begin);
     return lineEnd;
@@ -122,6 +207,8 @@ static void parse_global_module(char *content, conf * p)
             p->tcp6_listen = atoi(val_begin);
         } else if (strcasecmp(var, "dns_listen") == 0) {
             p->dns_listen = atoi(val_begin);
+        } else if (strcasecmp(var, "udp_listen") == 0) {
+            p->udp_listen = atoi(val_begin);;
         }
 
         content = strchr(lineEnd + 1, '\n');
@@ -289,27 +376,56 @@ static void parse_httpdns_module(char *content, conf * p)
     char *var, *val_begin, *val_end, *lineEnd;
     int val_begin_len;
 
-    while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL) {
+    while ((lineEnd = set_var_val_lineEnd2(content, &var, &val_begin, &val_end)) != NULL) {
         if (strcasecmp(var, "addr") == 0) {
             val_begin_len = strlen(val_begin) + 1;
             p->addr = (char *)malloc(val_begin_len);
             memset(p->addr, 0, val_begin_len);
             memcpy(p->addr, val_begin, val_begin_len);
         } else if (strcasecmp(var, "http_req") == 0) {
-            val_begin_len = strlen(val_begin) + 1;
-            p->http_req = (char *)malloc(val_begin_len);
+            //val_begin_len = strlen(val_begin) + 1;
+            val_begin_len = val_end - val_begin;
+            p->http_req = (char *)malloc(val_begin_len + 1);
             memset(p->http_req, 0, val_begin_len);
             memcpy(p->http_req, val_begin, val_begin_len);
             p->http_req_len = val_begin_len;
         } else if (strcasecmp(var, "encode") == 0) {
             p->encode = atoi(val_begin);
         }
+        
+        content = strchr(lineEnd + 1, '\n');
+    }
+}
+
+static void parse_httpudp_module(char *content, conf * p)
+{
+    char *var, *val_begin, *val_end, *lineEnd;
+    int val_begin_len;
+
+    while ((lineEnd = set_var_val_lineEnd2(content, &var, &val_begin, &val_end)) != NULL) {
+        if (strcasecmp(var, "addr") == 0) {
+            val_begin_len = strlen(val_begin) + 1;
+            p->httpudp_addr = (char *)malloc(val_begin_len);
+            memset(p->httpudp_addr, 0, val_begin_len);
+            memcpy(p->httpudp_addr, val_begin, val_begin_len);
+        } else if (strcasecmp(var, "http_req") == 0) {
+            //val_begin_len = strlen(val_begin) + 1;
+            val_begin_len = val_end - val_begin;
+            p->httpudp_http_req = (char *)malloc(val_begin_len + 1);
+            memset(p->httpudp_http_req, 0, val_begin_len);
+            memcpy(p->httpudp_http_req, val_begin, val_begin_len);
+            p->httpudp_http_req_len = val_begin_len;
+        } else if (strcasecmp(var, "encode") == 0) {
+            p->httpudp_encode = atoi(val_begin);
+        }
+        
         content = strchr(lineEnd + 1, '\n');
     }
 }
 
 void free_conf(conf * p)
 {
+    // http module
     if (p->http_ip)
         free(p->http_ip);
     if (p->http_del)
@@ -329,6 +445,7 @@ void free_conf(conf * p)
     if (p->http_regrep_obj)
         free(p->http_regrep_obj);
 
+    // https module
     if (p->https_ip)
         free(p->https_ip);
     if (p->https_del)
@@ -348,16 +465,28 @@ void free_conf(conf * p)
     if (p->https_regrep_obj)
         free(p->https_regrep_obj);
 
+    // httpdns module
     if (p->addr)
         free(p->addr);
-    if (p->http_req)
+    if (p->http_req) {
+        p->http_req_len = 0;
         free(p->http_req);
+    }
+    
+    // httpudp module
+    if(p->httpudp_addr)
+        free(p->httpudp_addr);
+    if (p->httpudp_http_req) {
+        p->httpudp_http_req_len = 0;
+        free(p->httpudp_http_req);
+    }
+    
     return;
 }
 
 void read_conf(char *filename, conf * configure)
 {
-    char *buff, *global_content, *http_content, *https_content, *httpdns_content;
+    char *buff, *global_content, *http_content, *https_content, *httpdns_content, *httpudp_content;
     FILE *file;
     long file_size;
 
@@ -380,21 +509,31 @@ void read_conf(char *filename, conf * configure)
 
     if ((global_content = read_module(buff, "global")) == NULL)
         perror("read global module error");
-    parse_global_module(global_content, configure);
+    else
+        parse_global_module(global_content, configure);
     free(global_content);
 
     if ((http_content = read_module(buff, "http")) == NULL)
         perror("read http module error");
-    parse_http_module(http_content, configure);
+    else
+        parse_http_module(http_content, configure);
     free(http_content);
 
     if ((https_content = read_module(buff, "https")) == NULL)
         perror("read https module error");
-    parse_https_module(https_content, configure);
+    else
+        parse_https_module(https_content, configure);
     free(https_content);
 
     if ((httpdns_content = read_module(buff, "httpdns")) == NULL)
         perror("read httpdns module error");
-    parse_httpdns_module(httpdns_content, configure);
+    else
+        parse_httpdns_module(httpdns_content, configure);
     free(httpdns_content);
+    
+    if ((httpudp_content = read_module(buff, "httpudp")) == NULL)
+        perror("read httpdns module error");
+    else
+        parse_httpudp_module(httpudp_content, configure);
+    free(httpudp_content);
 }
