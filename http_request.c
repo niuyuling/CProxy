@@ -136,56 +136,14 @@ static char *regrep(char *str, int *str_len, const char *src, char *dest, int de
     return str;
 }
 
-// 删除字符串head中第一位到 character 处并拼接 string, character 为空返回原字符串.(string 字符替换第一个字符到 character 处)
-char *splice_head(char *head, const char *character, char *string)
-{
-    int first_len = strlen(string);
-    char *_p1 = strstr(head, character);
-    if (_p1 == NULL) {
-        return head;
-    }
-    _p1 = _p1 + 1;
-    char temporary[first_len + strlen(_p1) + 1];
-    memset(temporary, 0, (first_len + strlen(_p1) + 1));
-    strcpy(temporary, string);
-    strcat(temporary, _p1);
-    memset(head, 0, strlen(head));
-    return strcpy(head, temporary);
-}
-
-// 删除字符串 head 中 character 到 string 处, character 为空返回原字符串.
-char *delete_head(char *head, const char *character, int string)
-{
-    int head_len = strlen(head);
-    char *_p1, *_p2;
-    _p1 = _p2 = NULL;
-    char temporary[head_len];
-    memset(temporary, 0, head_len);
-
-    _p1 = strstr(head, character);
-    if (_p1 == NULL) {
-        return head;
-    }
-
-    _p2 = strchr(_p1, string);
-    if (_p2 == NULL) {
-        return head;
-    }
-
-    memcpy(temporary, head, _p1 - head - 1);
-    strcat(temporary, _p2);
-    memset(head, 0, strlen(head));
-    //printf("%s\n", temporary);
-    return memcpy(head, temporary, strlen(temporary));
-}
-
 int extract_host(char *header, char *host, char *port)
 {
     memset(port, 0, strlen(port));
     memset(host, 0, strlen(host));
 //printf("%s\n", header);
     char *_p = strstr(header, "CONNECT"); // 在 CONNECT 方法中解析 隧道主机名称及端口号
-    if (_p) {
+    if (_p)
+    {
 
         if (strchr(header, '[') || strchr(header, ']')) { // IPv6
             char *_p1 = strchr(header, '[');
@@ -208,91 +166,106 @@ int extract_host(char *header, char *host, char *port)
         } else {                // 如果_p2等于空就返回-1
             return -1;
         }
+        
         return 0;
     } else {
 
-        char *p = strstr(header, "Host:");
-        if (!p) {
+        char *_p = strstr(header, "Host:");
+        if (_p == NULL) {
+            _p = strstr(header, "host:");
+        }
+        if (_p == NULL) {                // 都为空时
             return -1;
         }
-        char *p1 = strchr(p, '\n');
-        if (!p1) {
+        
+        char *_p1 = strchr(_p, '\n');     // 指向末尾'\n'
+        if (!_p1) {
             return -1;
         }
 
-        char *p2 = strchr(p + 5, ':'); // 5是指'Host:'的长度
-        int h_len = (int)(p1 - p - 6);
+        char *_p2 = strchr(_p + 5, ':'); // 5是指'Host:'的长度
+        int h_len = (int)(_p1 - _p - 6);
         char s_host[h_len];
-        strncpy(s_host, p + 6, p1 - p - 6);
+        strncpy(s_host, _p + 6, _p1 - _p - 6);
         s_host[h_len] = '\0';
-        char *p3 = strchr(s_host, ':');
-        char *p4 = NULL;
-        if (p3)
-            p4 = strchr(p3 + 1, ':');
+        char *_p3 = strchr(s_host, ':');
+        char *_p4 = NULL;
+        if (_p3)
+            _p4 = strchr(_p3 + 1, ':');
+        {                                               // IPV6
+            if (_p4 != NULL) {
+                char *_p5 = NULL;
+                char *_p6 = NULL;
+                _p5 = strchr(header, ' ');
+                if (_p5)
+                    _p6 = strchr(_p5 + 1, ' ');
 
-        if (p4 != NULL) {       // IPV6
-            char *p5 = NULL;
-            char *p6 = NULL;
-            p5 = strchr(header, ' ');
-            if (p5)
-                p6 = strchr(p5 + 1, ' ');
+                char url[_p6 - _p5 - 1];
+                memset(url, 0, _p6 - _p5 - 1);
+                strncpy(url, _p5 + 1, _p6 - _p5 - 1);
+                url[_p6 - _p5 - 1] = '\0';
 
-            char url[p6 - p5 - 1];
-            memset(url, 0, p6 - p5 - 1);
-            strncpy(url, p5 + 1, p6 - p5 - 1);
-            url[p6 - p5 - 1] = '\0';
+                if (strstr(url, "http") != NULL) {      // 去除 'http://'
+                    memcpy(url, url + 7, (_p6 - _p5 - 1) - 7);
+                    url[(_p6 - _p5 - 1) - 7] = '\0';
+                    char *_p7 = strchr(url, '/');
+                    if (_p7)         // 去除 uri
+                        url[_p7 - url] = '\0';
 
-            if (strstr(url, "http") != NULL) { // 去除 'http://'
-                memcpy(url, url + 7, strlen(url) - 7);
-                url[strlen(url) - 7] = '\0';
-                char *p7 = strchr(url, '/');
-                if (p7)         // 去除 uri
-                    url[p7 - url] = '\0';
+                    char *_p8 = strchr(url, ']');
+                    char *_p9 = strchr(url, '\0');
+                    if (_p8) {
+                        strcpy(port, _p8 + 2);
+                        strncpy(host, url + 1, _p8 - (url+1));
 
-                char *p8 = strchr(url, ']');
-                if (p8) {
-                    strcpy(port, p8 + 2);
-                    strncpy(host, url + 1, strlen(url) - strlen(p8) - 1);
-
-                    if (strlen(p8) < 3) {
-                        strcpy(port, "80");
-                        strncpy(host, url + 1, strlen(url) - strlen(p8) - 1);
+                        if ((_p9-_p8) == 1) {
+                            strcpy(port, "80");
+                            strncpy(host, url + 1, _p8 - (url+1));
+                        }
                     }
-                }
-                return 0;
-            } else {            // HTTP头为不规范的url时处理Host, 主要Proxifier转发url为'/'时
-                //printf("s_host: %s\n", s_host);
-                char *_p1 = strchr(s_host, '[');
-                char *_p2 = strchr(_p1 + 1, ']');
-                if (_p1 && _p2) {
-                    memcpy(host, _p1 + 1, _p2 - _p1 - 1);
-                    if (strlen(_p2) < 3) {
-                        strcpy(port, "80");
-                    } else {
-                        strcpy(port, _p2 + 2);
+                    return 0;
+                } else {            // HTTP头为不规范的url时处理Host, 主要Proxifier转发url为'/'时
+                    //printf("s_host: %s\n", s_host);
+                    char *_p1 = strchr(s_host, '[');
+                    if (_p1 == NULL)                     // 涉及到自定义的Host, 不带'['、']'时, 默认截取最后为端口
+                    {
+                        char *_p2 = strrchr(s_host, ':');
+                        remote_port = atoi(_p2+1);
+                        strncpy(remote_host, s_host, _p2-s_host);
+                        return 0;
                     }
+                    
+                    char *_p2 = strchr(_p1 + 1, ']');
+                    if (_p1 && _p2) {
+                        memcpy(host, _p1 + 1, _p2 - _p1 - 1);
+                        if (strlen(_p2) < 3) {
+                            strcpy(port, "80");
+                        } else {
+                            strcpy(port, _p2 + 2);
+                        }
 
+                    }
+                    return 0;
                 }
-                return 0;
-            }
 
-            return -1;
-        }
-
-        if (p2 && p2 < p1) {
-            memcpy(port, p2 + 1, (int)(p1 - p2 - 1));
-            memcpy(host, p + 5 + 1, (int)(p2 - p - 5 - 1));
-        } else {
-            if (0 < (int)(p1 - p - 5 - 1 - 1)) {
-                memcpy(host, p + 5 + 1, (p1 - p - 5 - 1 - 1));
-                memcpy(port, "80", 2);
-            } else {
-                memcpy(host, p + 5 + 1, (strlen(p) - strlen(p1) - 6));
-                memcpy(port, "80", 2);
+                return -1;
             }
         }
-        //printf("%s\n", host);
-        //printf("%s\n", port);
+        // HTTP 非 CONNECT 方法
+        {
+            if (_p2 && _p2 < _p1) {        // 带端口, p2 指向':' p1 指向末尾'\n'
+                memcpy(port, _p2 + 1, (int)(_p1 - _p2 - 1));
+                memcpy(host, _p + 5 + 1, (int)(_p2 - _p - 5 - 1));
+            } else {                    // 不带端口
+                if (0 < (int)(_p1 - _p - 5 - 1 - 1)) {
+                    memcpy(host, _p + 5 + 1, (_p1 - _p - 5 - 1 - 1));
+                    memcpy(port, "80", 2);
+                } else {
+                    memcpy(host, _p + 5 + 1, (_p1 - _p) - 6);
+                    memcpy(port, "80", 2);
+                }
+            }
+        }
 
         return 0;
     }
@@ -321,26 +294,6 @@ char *get_http_path(char *url, char *path)
     }
 
     return NULL;
-}
-
-void free_http_request(struct http_request *http_request)
-{
-    if (http_request->method)
-        free(http_request->method);
-    if (http_request->U)
-        free(http_request->U);
-    if (http_request->version)
-        free(http_request->version);
-    if (http_request->host)
-        free(http_request->host);
-    if (http_request->port)
-        free(http_request->port);
-    if (http_request->H)
-        free(http_request->H);
-    if (http_request->url)
-        free(http_request->url);
-    if (http_request->uri)
-        free(http_request->uri);
 }
 
 void get_http_host_port_len(char *head, int *host_len, int *port_len)
@@ -379,12 +332,32 @@ void get_http_host_port_len(char *head, int *host_len, int *port_len)
                 *port_len = *host_len;
             }
         } else {                // 未找到时使用HTTP_HEAD_CACHE_SIZE大小
-            *host_len = HTTP_HEAD_CACHE_SIZE;
-            *port_len = HTTP_HEAD_CACHE_SIZE;
+            *host_len = HTTP_HEAD_HOST_CACHE_SIZE;
+            *port_len = HTTP_HEAD_HOST_CACHE_SIZE/10;
         }
     }
 
     return;
+}
+
+void free_http_request(struct http_request *http_request)
+{
+    if (http_request->method)
+        free(http_request->method);
+    if (http_request->U)
+        free(http_request->U);
+    if (http_request->version)
+        free(http_request->version);
+    if (http_request->host)
+        free(http_request->host);
+    if (http_request->port)
+        free(http_request->port);
+    if (http_request->H)
+        free(http_request->H);
+    if (http_request->url)
+        free(http_request->url);
+    if (http_request->uri)
+        free(http_request->uri);
 }
 
 void parse_request_head(char *http_request_line, struct http_request *http_request)
@@ -399,7 +372,7 @@ void parse_request_head(char *http_request_line, struct http_request *http_reque
         return;
     }
 
-    head_len = strlen(http_request_line) - strlen(p);
+    head_len = p - http_request_line;
     head = (char *)malloc(sizeof(char) * head_len + 1);
     if (head == NULL)
         free(head);
@@ -423,12 +396,13 @@ void parse_request_head(char *http_request_line, struct http_request *http_reque
     memset(http_request->version, 0, 10);
 
     m = strchr(head, ' ');
-    http_request->method_len = strlen(head) - strlen(m);
-    memcpy(http_request->method, head, http_request->method_len);
+    http_request->method_len = m - head;
+    memmove(http_request->method, head, http_request->method_len);
+    
     u = strchr(m + 1, ' ');
-    http_request->U_len = strlen(m + 1) - strlen(u);
-    memcpy(http_request->U, m + 1, http_request->U_len);
-    memcpy(http_request->version, u + 1, 8);
+    memmove(http_request->U, m + 1, u - (m+1));
+    
+    memmove(http_request->version, u + 1, 8);
     http_request->version_len = 8;
     http_request->U_len = (int)strlen(http_request->U);
 
@@ -487,55 +461,163 @@ void parse_request_head(char *http_request_line, struct http_request *http_reque
     http_request->url_len = (int)strlen(http_request->url);
     http_request->uri_len = (int)strlen(http_request->uri);
     http_request->H_len = (int)strlen(http_request->H);
+    /*
+    printf("%s %d\n", http_request->method, http_request->method_len);
+    printf("%s %d\n", http_request->U, http_request->U_len);
+    printf("%s %d\n", http_request->version, http_request->version_len);
+    printf("%s %d\n", http_request->host, http_request->host_len);
+    printf("%s %d\n", http_request->port, http_request->port_len);
+    printf("%s %d\n", http_request->H, http_request->H_len);
+    //printf("%s %d\n", http_request->url);
+    //printf("%s %d\n", http_request->uri);
+    */
 
     free(head);
     return;
 }
 
+static char *splice_head(char *head, const char *needle, char *string)
+{
+    char *tail_head;
+    char *_p0;
+    char *_p1;
+    
+    _p1 = strstr(head, needle);
+    if (_p1 == NULL) {
+        return head;
+    }
+    _p1 = _p1 + 1;
+    _p0 = strchr(_p1, '\0');
+    
+    tail_head = (char *)alloca((_p0 - _p1) + 1);
+    if (tail_head == NULL) {
+        perror("alloca");
+        return head;
+    }
+    memset(tail_head, 0, (_p0 - _p1) + 1);
+    strcpy(tail_head, _p1);
+
+    memset(head, 0, strlen(head));
+    strcpy(head, string);
+    strcat(head, tail_head);
+    
+    return head;
+}
+
+static char *delete_head(char *head, const char *needle, int string)
+{
+    char *temp_stack;
+    char *_p1, *_p2, *_p3;
+    _p1 = _p2 = _p3 = NULL;
+    int temp_stack_len;
+
+    _p1 = strstr(head, needle);     // _p1指向head字符串中的"needle"字符处(needle字符串的第一个字符)
+    if (_p1 == NULL) {
+        //perror("_p1 HEAD NULL");
+        return head;
+    }
+    _p2 = strchr(_p1, string);      // _p2指向head字符串中"string"字符到末尾中的'\0'
+    if (_p2 == NULL) {
+        //perror("_p2 HEAD NULL");
+        return head;
+    }
+    _p3 = strchr(_p1, '\0');        // _p3指向head字符串末尾的'\0'
+    if (_p3 == NULL) {
+        //perror("_p3 HEAD NULL");
+        return head;
+    }
+    temp_stack_len = (_p1 - head) + (_p3 - _p2);
+    temp_stack = (char *)alloca(temp_stack_len + 1);     // 分配临时栈内存，长度是去除needle到string处
+    if (temp_stack == NULL) {
+        perror("alloca");
+        return head;
+    }
+    memset(temp_stack, 0, temp_stack_len + 1);
+    memmove(temp_stack, head, (_p1 - head) - 1);
+    strcat(temp_stack, _p2);
+
+    
+    memset(head, 0, strlen(head));
+    return memmove(head, temp_stack, temp_stack_len);
+}
+
+static char *conf_handle_strrep(char *str, int str_len, tcp *temp)
+{
+    tcp *p = temp;
+    while (p) {
+        if (p->strrep) {
+            str = replace(str, &str_len, p->strrep_s, p->strrep_s_len, p->strrep_t, p->strrep_t_len);
+        }
+
+        p = p->next;
+    }
+
+    return str;
+}
+
+static char *conf_handle_regrep(char *str, int str_len, tcp *temp)
+{
+    tcp *p = temp;
+    while (p) {
+        if (p->regrep) {
+            str = regrep(str, &str_len, p->regrep_s, p->regrep_t, p->regrep_t_len);
+        }
+
+        p = p->next;
+    }
+
+    return str;
+}
+
 char *request_head(conn_t * in, conf * configure)
 {
+    char *result = NULL;
+    char *delim = ",";
+    char *saveptr = NULL;
+    char *incomplete_head = NULL;
+    int incomplete_head_len = 0;
+    int return_val = 0;
     struct http_request *http_request;
     http_request = (struct http_request *)malloc(sizeof(struct http_request));
     memset(http_request, 0, sizeof(struct http_request));
 
     parse_request_head(in->incomplete_data, http_request);
 
-    if (strncmp(in->incomplete_data, "CONNECT", 7) == 0) {
-        char *incomplete_head;
-        int incomplete_head_len;
-        char https_del_copy[configure->https_del_len * 2];
-        char *result = NULL;
-
+    if ((return_val = strncmp(in->incomplete_data, "CONNECT", 7)) == 0)
+    {
+        char https_del_copy[configure->https_del_len+1];
+        
         memset(remote_host, 0, CACHE_SIZE);
-        if (configure->https_port > 0)
+        if (configure->https_port > 0) {
             remote_port = configure->https_port;
-        if (configure->https_ip != NULL)
+        }
+        if (configure->https_ip != NULL) {
             strcpy(remote_host, configure->https_ip);
+        }
         incomplete_head = (char *)malloc(sizeof(char) * (BUFFER_SIZE));
         if (incomplete_head == NULL) {
             free(incomplete_head);
             perror("malloc");
         }
         memset(incomplete_head, 0, sizeof(char) * (BUFFER_SIZE));
-        memcpy(incomplete_head, in->incomplete_data, strlen(in->incomplete_data));
-        memcpy(https_del_copy, configure->https_del, configure->https_del_len);
+        memmove(incomplete_head, in->incomplete_data, in->incomplete_data_len);
+        memmove(https_del_copy, configure->https_del, configure->https_del_len+1);
 
-        result = strtok(https_del_copy, ",");
+        
+        result = strtok_r(https_del_copy, delim, &saveptr);
         while (result != NULL) {
             delete_head(incomplete_head, result, '\n');
-            result = strtok(NULL, ",");
+            result = strtok_r(NULL, delim, &saveptr);
         }
+        
         splice_head(incomplete_head, "\n", configure->https_first);
-        incomplete_head_len = strlen(incomplete_head);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\r", 2, "\r", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\n", 2, "\n", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\b", 2, "\b", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\v", 2, "\v", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\f", 2, "\f", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\a", 2, "\a", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\t", 2, "\t", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\r", 2, "\r", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\n", 2, "\n", 1);
+        incomplete_head_len = strlen(incomplete_head);          // 更新HTTPS HEADER长度
+        
+        incomplete_head = conf_handle_strrep(incomplete_head, incomplete_head_len, https_head_strrep);
+        incomplete_head_len = strlen(incomplete_head) + 1;      // 更新HTTPS HEADER长度
+        incomplete_head = conf_handle_regrep(incomplete_head, incomplete_head_len, https_head_regrep);
+        
+        incomplete_head_len = strlen(incomplete_head);          // 更新HTTPS HEADER长度
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[M]", 3, http_request->method, http_request->method_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[method]", 8, http_request->method, http_request->method_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[U]", 3, http_request->U, http_request->U_len);
@@ -544,27 +626,27 @@ char *request_head(conn_t * in, conf * configure)
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, http_request->host, http_request->host_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[port]", 6, http_request->port, http_request->port_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[H]", 3, http_request->H, http_request->H_len);
-        if (configure->https_strrep)
-            incomplete_head = replace(incomplete_head, &incomplete_head_len, configure->https_strrep_aim, configure->https_strrep_aim_len, configure->https_strrep_obj, configure->https_strrep_obj_len);
-        if (configure->https_regrep)
-            incomplete_head = regrep(incomplete_head, &incomplete_head_len, configure->https_regrep_aim, configure->https_regrep_obj, configure->https_regrep_obj_len);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[H]", 3, http_request->H, http_request->H_len);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, http_request->host, http_request->host_len);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[port]", 6, http_request->port, http_request->port_len);
-        incomplete_head_len = strlen(incomplete_head); // 更新HTTPS HEADER长度
+        incomplete_head_len = strlen(incomplete_head);      // 更新HTTPS HEADER长度
         //printf("%s", incomplete_head);                      // 打印HTTPS HEADER
 
-        memset(in->incomplete_data, 0, incomplete_head_len + 1); // 清空incomplete_data数据
-        strcpy(in->incomplete_data, incomplete_head); // 更新incomplete_data数据
-        in->incomplete_data_len = strlen(in->incomplete_data); // 更新incomplete_data长度
-        free(incomplete_head);  // 释放incomplete_head内存
+        char *new_incomplete_data;
+        new_incomplete_data = (char *)realloc(in->incomplete_data, incomplete_head_len + 1);
+        if (new_incomplete_data == NULL) {
+            free(in->incomplete_data);
+            perror("realloc");
+            return in->incomplete_data;
+        }
+        in->incomplete_data = new_incomplete_data;
+        memset(in->incomplete_data, 0, incomplete_head_len + 1);                // 清空incomplete_data数据
+        memmove(in->incomplete_data, incomplete_head, incomplete_head_len);     // 更新incomplete_data数据
+        in->incomplete_data_len = incomplete_head_len;                          // 更新incomplete_data长度
+
+        free(incomplete_head);                                                  // 释放incomplete_head内存
     }
 
-    if (strncmp(in->incomplete_data, "GET", 3) == 0 || strncmp(in->incomplete_data, "POST", 4) == 0) {
-        char *incomplete_head;
-        int incomplete_head_len;
-        char http_del_copy[configure->http_del_len];
-        char *result = NULL;
+    if (strncmp(in->incomplete_data, "GET", 3) == 0 || strncmp(in->incomplete_data, "POST", 4) == 0)
+    {
+        char http_del_copy[configure->http_del_len + 1];
 
         memset(remote_host, 0, CACHE_SIZE);
         if (configure->http_port > 0)
@@ -578,25 +660,21 @@ char *request_head(conn_t * in, conf * configure)
         }
 
         memset(incomplete_head, 0, sizeof(char) * (BUFFER_SIZE));
-        memcpy(incomplete_head, in->incomplete_data, strlen(in->incomplete_data));
-        memcpy(http_del_copy, configure->http_del, configure->http_del_len);
+        memmove(incomplete_head, in->incomplete_data, in->incomplete_data_len);
+        memmove(http_del_copy, configure->http_del, configure->http_del_len+1);
 
-        result = strtok(http_del_copy, ",");
+        result = strtok_r(http_del_copy, delim, &saveptr);
         while (result != NULL) {
             delete_head(incomplete_head, result, '\n');
-            result = strtok(NULL, ",");
+            result = strtok_r(NULL, delim, &saveptr);
         }
+
         splice_head(incomplete_head, "\n", configure->http_first);
-        incomplete_head_len = strlen(incomplete_head);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\r", 2, "\r", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\n", 2, "\n", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\b", 2, "\b", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\v", 2, "\v", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\f", 2, "\f", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\a", 2, "\a", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\t", 2, "\t", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\r", 2, "\r", 1);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "\\n", 2, "\n", 1);
+        incomplete_head_len = strlen(incomplete_head);          // 更新HTTP HEADER长度
+        incomplete_head = conf_handle_strrep(incomplete_head, incomplete_head_len, http_head_strrep);
+        incomplete_head_len = strlen(incomplete_head) + 1;      // 更新HTTP HEADER长度
+        incomplete_head = conf_handle_regrep(incomplete_head, incomplete_head_len, http_head_regrep);
+        incomplete_head_len = strlen(incomplete_head);          // 更新HTTP HEADER长度
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[M]", 3, http_request->method, http_request->method_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[method]", 8, http_request->method, http_request->method_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[U]", 3, http_request->U, http_request->U_len);
@@ -607,20 +685,22 @@ char *request_head(conn_t * in, conf * configure)
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, http_request->host, http_request->host_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[port]", 6, http_request->port, http_request->port_len);
         incomplete_head = replace(incomplete_head, &incomplete_head_len, "[H]", 3, http_request->H, http_request->H_len);
-        if (configure->http_strrep)
-            incomplete_head = replace(incomplete_head, &incomplete_head_len, configure->http_strrep_aim, configure->http_strrep_aim_len, configure->http_strrep_obj, configure->http_strrep_obj_len);
-        if (configure->http_regrep)
-            incomplete_head = regrep(incomplete_head, &incomplete_head_len, configure->http_regrep_aim, configure->http_regrep_obj, configure->http_regrep_obj_len);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[host]", 6, http_request->host, http_request->host_len);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[port]", 6, http_request->port, http_request->port_len);
-        incomplete_head = replace(incomplete_head, &incomplete_head_len, "[H]", 3, http_request->H, http_request->H_len);
-        incomplete_head_len = strlen(incomplete_head); // 更新HTTP HEADER长度
-        //printf("%s", incomplete_head);                      // 打印HTTP HEADER
-
-        memset(in->incomplete_data, 0, incomplete_head_len + 1); // 清空incomplete_data数据
-        memmove(in->incomplete_data, incomplete_head, incomplete_head_len + 1); // 更新incomplete_data数据
-        in->incomplete_data_len = strlen(in->incomplete_data); // 更新incomplete_data长度
-        free(incomplete_head);  // 释放incomplete_head内存
+        incomplete_head_len = strlen(incomplete_head);          // 更新HTTP HEADER长度
+        //printf("%s", incomplete_head);                          // 打印HTTP HEADER
+        
+        char *new_incomplete_data;
+        new_incomplete_data = (char *)realloc(in->incomplete_data, incomplete_head_len + 1);
+        if (new_incomplete_data == NULL) {
+            free(in->incomplete_data);
+            perror("realloc");
+            return in->incomplete_data;
+        }
+        in->incomplete_data = new_incomplete_data;
+        memset(in->incomplete_data, 0, incomplete_head_len + 1);                // 清空incomplete_data数据
+        memmove(in->incomplete_data, incomplete_head, incomplete_head_len);   // 更新incomplete_data数据
+        in->incomplete_data_len = incomplete_head_len;                          // 更新incomplete_data长度
+        
+        free(incomplete_head);                                                  // 释放incomplete_head内存
     }
 
     free_http_request(http_request);

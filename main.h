@@ -25,9 +25,7 @@
 
 #define MAX_CONNECTION 1020
 #define BUFFER_SIZE 8192
-#define PATH_SIZE 270
 #define CACHE_SIZE 270
-#define HTTP_HEAD_CACHE_SIZE 1024
 #define ERRDEBUG fprintf(stderr,"Error Occured at File: %s, Function: %s, Line: %d, Date: %s, Time: %s.\n", __FILE__, __FUNCTION__, __LINE__, __DATE__, __TIME__);
 
 

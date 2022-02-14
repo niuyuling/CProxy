@@ -32,7 +32,6 @@
         -c --config            : set configuration file, default: CProxy.conf
         -? -h --? --help       : help information
 
-    Dec 19 2020 09:18:15 Compile、link.
 
     #启动
     ./CProxy -c CProxy.conf

@@ -8,6 +8,8 @@
 #include "http_proxy.h"
 #include "conf.h"
 
+#define HTTP_HEAD_HOST_CACHE_SIZE 1024
+
 struct http_request {
     char *method, *U, *version;
     char *host, *port, *H;

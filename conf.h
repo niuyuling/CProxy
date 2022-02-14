@@ -24,43 +24,56 @@ typedef struct CONF {
     int http_port;
     char *http_ip, *http_del, *http_first;
     int http_ip_len, http_del_len, http_first_len;
-    char *http_strrep, *http_regrep;
-    int http_strrep_len, http_regrep_len;
-
-    char *http_strrep_aim, *http_strrep_obj;
-    int http_strrep_aim_len, http_strrep_obj_len;
-
-    char *http_regrep_aim, *http_regrep_obj;
-    int http_regrep_aim_len, http_regrep_obj_len;
 
     // https module
     int https_port;
     char *https_ip, *https_del, *https_first;
     int https_ip_len, https_del_len, https_first_len;
-    char *https_strrep, *https_regrep;
-    int https_strrep_len, https_regrep_len;
-
-    char *https_strrep_aim, *https_strrep_obj;
-    int https_strrep_aim_len, https_strrep_obj_len;
-
-    char *https_regrep_aim, *https_regrep_obj;
-    int https_regrep_aim_len, https_regrep_obj_len;
 
     // httpdns module
     char *addr;
     char *http_req;
+    int addr_len;
     int http_req_len;
     int encode;
     
     // httpudp module
     char *httpudp_addr;
     char *httpudp_http_req;
+    int httpudp_addr_len;
     int httpudp_http_req_len;
     int httpudp_encode;
 } conf;
 
+typedef struct tcp {
+    char *strrep;
+    int strrep_len;
+    char *strrep_s, *strrep_t;
+    int strrep_s_len, strrep_t_len;
+
+    char *regrep;
+    int regrep_len;
+    char *regrep_s, *regrep_t;
+    int regrep_s_len, regrep_t_len;
+
+    struct tcp *next;
+} tcp;
+
+extern tcp *http_head_strrep;
+extern tcp *http_head_regrep;
+extern tcp *http_node;
+
+extern tcp *https_head_strrep;
+extern tcp *https_head_regrep;
+extern tcp *https_node;
+
+extern void print_tcp(tcp *p);
+extern void free_tcp(tcp **p);
+extern tcp *local_reverse(tcp *head);
+
+
 char *strncpy_(char *dest, const char *src, size_t n);
-void read_conf(char *file, conf * p);
-void free_conf(conf * p);
+void read_conf(char *file, conf *p);
+void free_conf(conf *p);
 
 #endif
