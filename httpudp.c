@@ -71,12 +71,16 @@ static int createRspFd(info_t * client)
     setsockopt(client->responseClientFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     setsockopt(client->responseClientFd, SOL_IP, IP_TRANSPARENT, &opt, sizeof(opt));
     //切换root伪装源目标地址
-    seteuid(0);
-    setegid(0);
+    if (-1 == seteuid(0))
+        perror("seteuid");
+    if (-1 == setegid(0))
+        perror("setegid");
     bind(client->responseClientFd, (struct sockaddr *)&client->toaddr, sizeof(struct sockaddr_in));
     //切换回用户设置的uid
-    setegid(global.uid);
-    seteuid(global.uid);
+    if (-1 == setegid(global.uid))
+         perror("setegid");
+    if (-1 == seteuid(global.uid))
+         perror("seteuid");
 
     return 0;
 }
@@ -368,14 +372,14 @@ static void http_udp_req_init()
         udp.http_request = replace(udp.http_request, &udp.http_request_len, "[url]", 5, "/", 1);
         udp.http_request = replace(udp.http_request, &udp.http_request_len, "[U]", 3, "/", 1);
     } else {                    /* 默认使用CONNECT请求 */
-    if (https.encodeCode) {
-        dataEncode(dest, strlen(dest), https.encodeCode);
-        udp.httpsProxy_encodeCode = https.encodeCode;
-    }
-    udp.http_request_len = default_ssl_request_len;
-    copy_new_mem(default_ssl_request, default_ssl_request_len, &udp.http_request);
-    udp.http_request = replace(udp.http_request, &udp.http_request_len, "[H]", 3, dest, strlen(dest));
-    memcpy(&udp.dst, &https.dst, sizeof(udp.dst));
+        if (https.encodeCode) {
+            dataEncode(dest, strlen(dest), https.encodeCode);
+            udp.httpsProxy_encodeCode = https.encodeCode;
+        }
+        udp.http_request_len = default_ssl_request_len;
+        copy_new_mem(default_ssl_request, default_ssl_request_len, &udp.http_request);
+        udp.http_request = replace(udp.http_request, &udp.http_request_len, "[H]", 3, dest, strlen(dest));
+        memcpy(&udp.dst, &https.dst, sizeof(udp.dst));
     }
     if (udp.http_request == NULL)
         errors("out of memory.");

@@ -49,7 +49,7 @@ int8_t read_cache_file()
     char *buff, *cache_ptr;
     struct dns_cache *cache_temp;
     long file_size;
-    int len, fl=0;
+    int len, fl = 0;
 
     cache_temp = NULL;
     cache_using = 0;
@@ -69,8 +69,7 @@ int8_t read_cache_file()
     if ((buff = (char *)alloca(file_size)) == NULL)
         return 1;
     rewind(cfp);
-    if ((fl = fread(buff, file_size, 1, cfp)) != 1)
-        ;
+    if ((fl = fread(buff, file_size, 1, cfp)) != 1) ;
     fclose(cfp);
 
     for (cache_ptr = buff; cache_ptr - buff < file_size; cache_ptr += len) {

@@ -4,7 +4,6 @@
 #include "httpdns.h"
 #include "httpudp.h"
 #include "conf.h"
-#include "help.h"
 
 #define SERVER_TYPE_STOP 1
 #define SERVER_TYPE_RELOAD 2
@@ -29,6 +28,40 @@ int epollfd, server_sock, server_sock6, local_port, process;
 conn_t cts[MAX_CONNECTION];
 char local_host[CACHE_SIZE];
 
+static char help_information(void)
+{
+    static const char name[] = "C";
+    static const char subject[] = "Proxy Server";
+    static const struct {
+        const char *email;
+    } author = {
+        "AIXIAO@AIXIAO.ME",
+    };
+
+    static const char usage[] = "Usage: [-?h] [-s signal] [-c filename]";
+    static const char *s_help[] = {
+        "",
+        "Options:",
+        "    -s --signal            : send signal to a master process: stop, quit, restart, reload, status",
+        "    -c --config            : set configuration file, default: CProxy.conf",
+        "    -? -h --? --help       : help information",
+        "",
+        0
+    };
+
+    fprintf(stderr, "%s %s\n", name, subject);
+    fprintf(stderr, "Author: %s\n", author.email);
+    fprintf(stderr, "%s\n", usage);
+
+    int l;
+    for (l = 0; s_help[l]; l++) {
+        fprintf(stderr, "%s\n", s_help[l]);
+    }
+
+    BUILD("Compile、link.\n");
+
+    return 0;
+}
 
 int create_server_socket(int port)
 {
@@ -51,7 +84,7 @@ int create_server_socket(int port)
         perror("bind");
         return -1;
     }
-    if (listen(server_sock, 50) < 0) {
+    if (listen(server_sock, 500) < 0) {
         perror("listen");
         return -1;
     }
@@ -88,7 +121,7 @@ int create_server_socket6(int port)
         return -1;
     }
 
-    if (listen(server_sock, 20) < 0) {
+    if (listen(server_sock, 500) < 0) {
         perror("listen");
         return -1;
     }
@@ -142,7 +175,7 @@ void accept_client6()
     epoll_ctl(epollfd, EPOLL_CTL_ADD, client->fd, &epollEvent);
 }
 
-void *http_proxy_loop(void *p)
+void *tcp_loop(void *p)
 {
     conf *configure = (conf *) p;
     int n;
@@ -177,50 +210,6 @@ void *http_proxy_loop(void *p)
         }
     }
 
-    close(epollfd);
-    return NULL;
-}
-
-void *start_server(conf * configure)
-{
-    int n;
-    pthread_t thread_id;
-
-    ev.events = EPOLLIN;
-    ev.data.fd = server_sock;
-    if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock, &ev)) {
-        perror("epoll_ctl");
-        exit(1);
-    }
-    ev.events = EPOLLIN;
-    ev.data.fd = server_sock6;
-    if (-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, server_sock6, &ev)) {
-        perror("epoll_ctl");
-        exit(1);
-    }
-
-    if (timeout_minute)
-        pthread_create(&thread_id, NULL, &tcp_timeout_check, NULL);
-
-    while (1) {
-        n = epoll_wait(epollfd, events, MAX_CONNECTION, -1);
-        while (n-- > 0) {
-            if (events[n].data.fd == server_sock) {
-                accept_client();
-            } else if (events[n].data.fd == server_sock6) {
-                accept_client6();
-            } else {
-                if (events[n].events & EPOLLIN) {
-                    tcp_in((conn_t *) events[n].data.ptr, configure);
-                }
-                if (events[n].events & EPOLLOUT) {
-                    tcp_out((conn_t *) events[n].data.ptr);
-                }
-            }
-        }
-    }
-
-    close(epollfd);
     return NULL;
 }
 
@@ -229,13 +218,11 @@ int process_signal(int signal, char *process_name)
     char bufer[CACHE_SIZE];
     char comm[CACHE_SIZE];
     char proc_comm_name[CACHE_SIZE];
-    //int number[CACHE_SIZE] = { 0 };
-    //int n = 0;
     FILE *fp;
     DIR *dir;
     struct dirent *ptr;
     pid_t self_pid;
-    
+
     self_pid = getpid();
     dir = opendir("/proc");
     bzero(bufer, 0);
@@ -246,7 +233,7 @@ int process_signal(int signal, char *process_name)
             continue;
         if (strcmp(ptr->d_name, ".") == 0 || strcmp(ptr->d_name, "..") == 0 || atoi(ptr->d_name) == self_pid)
             continue;
-        
+
         sprintf(comm, "/proc/%s/comm", ptr->d_name);
         if (access(comm, F_OK) == 0) {
             fp = fopen(comm, "r");
@@ -269,12 +256,11 @@ int process_signal(int signal, char *process_name)
         }
     }
     closedir(dir);
-    
-    if (signal == SERVER_TYPE_STATUS)
-        ;
+
+    if (signal == SERVER_TYPE_STATUS) ;
     else if (signal == SERVICE_TYPE_STATUS_NOT_PRINT)
         return 1;
-    
+
     return 0;
 }
 
@@ -300,7 +286,8 @@ void server_ini()
         perror("daemon");
         return;
     }
-    //while (process-- > 1 && fork() == 0);
+
+    while (process-- > 1 && fork() == 0);
 }
 
 // 监听一个UDP接口
@@ -370,15 +357,15 @@ void initialize(conf * configure)
 
     // httpdns module
     global.dns_listen_fd = udp_listen((char *)"127.0.0.1", configure->dns_listen);
-    if ((p = strchr(configure->addr, ':')) != NULL) {
+    if ((p = strchr(configure->httpdns_addr, ':')) != NULL) {
         *p = '\0';
         httpdns.dst.sin_port = htons(atoi(p + 1));
     } else {
         httpdns.dst.sin_port = htons(80);
     }
-    httpdns.dst.sin_addr.s_addr = inet_addr(configure->addr);
-    httpdns.http_req_len = configure->http_req_len;
-    copy_new_mem(configure->http_req, httpdns.http_req_len, &httpdns.http_req);
+    httpdns.dst.sin_addr.s_addr = inet_addr(configure->httpdns_addr);
+    httpdns.http_req_len = configure->httpdns_http_req_len;
+    copy_new_mem(configure->httpdns_http_req, httpdns.http_req_len, &httpdns.http_req);
 
     // httpudp module
     global.udp_listen_fd = udp_listen((char *)"0.0.0.0", configure->udp_listen);
@@ -395,43 +382,56 @@ void initialize(conf * configure)
     // global module
     server_sock = create_server_socket(configure->tcp_listen); // IPV4
     server_sock6 = create_server_socket6(configure->tcp_listen); // IPV6
-    epollfd = epoll_create(MAX_CONNECTION);
-    if (epollfd == -1) {
-        perror("epoll_create");
-        exit(1);
-    }
 
 }
 
 void thread_loop(conf * configure)
 {
     pthread_t thread_id = 0;
+    /*
     sigset_t signal_mask;
     sigemptyset(&signal_mask);
     sigaddset(&signal_mask, SIGPIPE); // 忽略PIPE信号
     if (pthread_sigmask(SIG_BLOCK, &signal_mask, NULL) != 0) {
         printf("block sigpipe error\n");
     }
+    */
     
     if (global.timeout_m)
         pthread_create(&thread_id, NULL, &timeout_check, NULL);
-
-    if (pthread_create(&thread_id, NULL, &http_proxy_loop, (void *)configure) != 0)
-        perror("pthread_create");
-
-    if (global.dns_listen_fd >= 0) {
+    
+    if (server_sock >= 0)
+    {
+        if (global.dns_listen_fd >= 0) {
+            dns_init();
+            pthread_create(&thread_id, NULL, &dns_loop, NULL);
+        }
+        if (global.udp_listen_fd >= 0) {
+            udp_init();
+            //udp_loop(NULL);
+            pthread_create(&thread_id, NULL, &udp_loop, NULL);
+        }
+        
+        if (pthread_create(&thread_id, NULL, &tcp_loop, (void *)configure) != 0)
+            perror("pthread_create");
+    }
+    
+    if (global.dns_listen_fd >= 0)
+    {
         dns_init();
-        pthread_create(&thread_id, NULL, &dns_loop, NULL);
+        if (global.udp_listen_fd >= 0)
+        {
+            udp_init();
+            pthread_create(&thread_id, NULL, &udp_loop, NULL);
+        }
+        dns_loop(NULL);
     }
 
-    if (global.udp_listen_fd >= 0) {
-        udp_init();
-        udp_loop(NULL);
-        //pthread_create(&thread_id, NULL, &udp_loop, NULL);
-    }
+    udp_init();
+    udp_loop(NULL);
 
-    pthread_join(thread_id, NULL);
-    pthread_exit(NULL);
+    //pthread_join(thread_id, NULL);
+    //pthread_exit(NULL);
 
     /*  线程分离
        pthread_attr_t attr;
@@ -439,15 +439,15 @@ void thread_loop(conf * configure)
        pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
        pthread_create(&thread_id, &attr, &tcp_timeout_check, NULL);
-       pthread_create(&thread_id, &attr, &http_proxy_loop, (void *)configure);
+       pthread_create(&thread_id, &attr, &tcp_loop, (void *)configure);
        pthread_exit(NULL);
      */
 }
 
-
-
 void _main(int argc, char *argv[])
 {
+    char *p = NULL;
+    int longindex = 0;
     int opt;
     char path[CACHE_SIZE] = { 0 };
     char executable_filename[CACHE_SIZE] = { 0 };
@@ -458,42 +458,9 @@ void _main(int argc, char *argv[])
     conf *configure = (struct CONF *)malloc(sizeof(struct CONF));
     memset(configure, 0, sizeof(struct CONF));
     read_conf(inifile, configure);
-    
-    // 反转链表，使读取的配置正序
-    http_head_strrep = local_reverse(http_head_strrep);
-    http_head_regrep = local_reverse(http_head_regrep);
-    
-    https_head_strrep = local_reverse(https_head_strrep);
-    https_head_regrep = local_reverse(https_head_regrep);
-    
-/*
-    print_tcp(https_head_strrep);
-    print_tcp(https_head_regrep);
-    free_tcp(&https_head_strrep);
-    free_tcp(&https_head_regrep);
-    
-    print_tcp(http_head_strrep);
-    print_tcp(http_head_regrep);
-    free_tcp(&http_head_strrep);
-    free_tcp(&http_head_regrep);
-    
-    free_conf(configure);
-    free(configure);
-    exit(0);
-*/
-
 
     sslEncodeCode = 0;          // 默认SSL不转码
-    if (configure->sslencoding > 0) // 如果配置文件有sslencoding值,优先使用配置文件读取的值
-        sslEncodeCode = configure->sslencoding;
-    timeout_minute = 0;         // 默认不超时
-    if (configure->timeout > 0) // 如果配置文件有值,优先使用配置文件读取的值
-        timeout_minute = configure->timeout;
-    process = 2;                // 默认开启2个进程
-    if (configure->process > 0) // 如果配置文件有值,优先使用配置文件读取的值
-        process = configure->process;
 
-    int longindex = 0;
     char optstring[] = ":l:f:t:p:c:e:s:h?";
     static struct option longopts[] = {
         { "local_address", required_argument, 0, 'l' },
@@ -507,7 +474,6 @@ void _main(int argc, char *argv[])
         { "?", no_argument, 0, '?' },
         { 0, 0, 0, 0 }
     };
-    char *p = NULL;
     while (-1 != (opt = getopt_long(argc, argv, optstring, longopts, &longindex))) {
         switch (opt) {
         case 'l':
@@ -553,7 +519,7 @@ void _main(int argc, char *argv[])
             }
             if (strcasecmp(optarg, "restart") == 0 || strcasecmp(optarg, "reload") == 0) {
                 process_signal(SERVER_TYPE_STOP, executable_filename);
-                while (process_signal(SERVICE_TYPE_STATUS_NOT_PRINT, executable_filename) == 0);
+                while (process_signal(SERVICE_TYPE_STATUS_NOT_PRINT, executable_filename) == 0) ;
             }
             if (strcasecmp(optarg, "status") == 0)
                 exit(process_signal(SERVER_TYPE_STATUS, executable_filename));
@@ -568,15 +534,96 @@ void _main(int argc, char *argv[])
         }
     }
     
+    
+    signal(SIGPIPE, SIG_IGN);
+#if DAEMON
+    // 守护进程
+    int nochdir = 1;
+    int noclose = 1;
+    int pid;
+    if ((pid = fork()) < 0) {
+        return;
+    } else if (0 != pid) {
+        free_tcp(&http_head_strrep);
+        free_tcp(&http_head_regrep);
+        free_tcp(&https_head_strrep);
+        free_tcp(&https_head_regrep);
+        free_conf(configure);
+        free(configure);
+        exit(0);
+    }
 
-    server_ini();               // 守护进程
+    if (setsid() < 0) {
+        return;
+    }
 
+    signal(SIGHUP, SIG_IGN);
+    if ((pid = fork()) < 0) {
+        return;
+    } else if (0 != pid) {
+        free_tcp(&http_head_strrep);
+        free_tcp(&http_head_regrep);
+        free_tcp(&https_head_strrep);
+        free_tcp(&https_head_regrep);
+        free_conf(configure);
+        free(configure);
+        exit(0);
+    }
+
+    if (0 == nochdir) {
+        chdir("/");
+    }
+
+    if (0 == noclose) {
+        freopen("/dev/null", "r", stdin);
+        freopen("/dev/null", "w", stdout);
+        freopen("/dev/null", "w", stderr);
+    }
+#endif
+
+
+
+    // 反转链表，使读取的配置正序
+    http_head_strrep = local_reverse(http_head_strrep);
+    http_head_regrep = local_reverse(http_head_regrep);
+
+    https_head_strrep = local_reverse(https_head_strrep);
+    https_head_regrep = local_reverse(https_head_regrep);
+
+/*
+    print_tcp(https_head_strrep);
+    print_tcp(https_head_regrep);
+    free_tcp(&https_head_strrep);
+    free_tcp(&https_head_regrep);
+    
+    print_tcp(http_head_strrep);
+    print_tcp(http_head_regrep);
+    free_tcp(&http_head_strrep);
+    free_tcp(&http_head_regrep);
+    
+    free_conf(configure);
+    free(configure);
+    exit(0);
+*/
+
+    
     rt.rlim_max = rt.rlim_cur = MAX_CONNECTION * 2; // 设置每个进程允许打开的最大文件数
     if (setrlimit(RLIMIT_NOFILE, &rt) == -1)
         perror("setrlimit");
     initialize(configure);
+    
+    
     if (setegid(configure->uid) == -1 || seteuid(configure->uid) == -1) // 设置uid
         exit(1);
+        
+    while (configure->process-- > 1 && (child_pid = fork()) == 0);
+    
+    epollfd = epoll_create(MAX_CONNECTION);
+    if (epollfd == -1) {
+        perror("epoll_create");
+        exit(1);
+    }
+
     thread_loop(configure);
 
     return;

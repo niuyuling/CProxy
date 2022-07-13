@@ -16,15 +16,17 @@ void dataEncode(char *data, int data_len, unsigned code)
 void *tcp_timeout_check(void *nullPtr)
 {
     int i;
+
     for (i = 0; i < MAX_CONNECTION; i += 2) {
         if (cts[i].fd > -1) {
             if (cts[i].timer >= timeout_minute) {
+                printf("关闭连接\n");
                 close_connection(cts + i);
             } else
                 cts[i].timer++;
         }
     }
-    
+
     return NULL;
 }
 
@@ -41,7 +43,7 @@ static char *read_data(conn_t * in, char *data, int *data_len)
         }
         data = new_data;
         read_len = read(in->fd, data + *data_len, BUFFER_SIZE);
-        // 判断是否关闭连接
+        /* 判断是否关闭连接 */
         if (read_len <= 0) {
             if (read_len == 0 || *data_len == 0 || errno != EAGAIN) {
                 free(data);
@@ -130,13 +132,13 @@ void clientToserver(conn_t * in)
 // 判断请求类型
 static int8_t request_type(char *data)
 {
-    if (strncmp(data, "GET", 3) == 0 ||
-        strncmp(data, "POST", 4) == 0 ||
-        strncmp(data, "CONNECT", 7) == 0 ||
-        strncmp(data, "HEAD", 4) == 0 ||
-        strncmp(data, "PUT", 3) == 0 ||
-        strncmp(data, "OPTIONS", 7) == 0 ||
-        strncmp(data, "MOVE", 4) == 0 ||
+    if (strncmp(data, "GET", 3) == 0 || 
+        strncmp(data, "POST", 4) == 0 || 
+        strncmp(data, "CONNECT", 7) == 0 || 
+        strncmp(data, "HEAD", 4) == 0 || 
+        strncmp(data, "PUT", 3) == 0 || 
+        strncmp(data, "OPTIONS", 7) == 0 || 
+        strncmp(data, "MOVE", 4) == 0 || 
         strncmp(data, "COPY", 4) == 0 || 
         strncmp(data, "TRACE", 5) == 0 || 
         strncmp(data, "DELETE", 6) == 0 || 
@@ -160,14 +162,14 @@ int check_ipversion(char *address)
             return AF_INET6;
         }
     }
-    
+
     return 0;
 }
 
 int create_connection6(char *remote_host, int remote_port)
 {
     struct addrinfo hints;
-    struct addrinfo *res = NULL;
+    
     int sock;
     int validfamily = 0;
     char portstr[CACHE_SIZE];
@@ -183,18 +185,18 @@ int create_connection6(char *remote_host, int remote_port)
     // check for numeric IP to specify IPv6 or IPv4 socket
     if ((validfamily = check_ipversion(remote_host)) != 0) {
         hints.ai_family = validfamily;
-        hints.ai_flags |= AI_NUMERICHOST; // remote_host是有效的数字ip，跳过解析
+        hints.ai_flags |= AI_NUMERICHOST;
     }
     
-
-    //getaddrinfo方法
-    // 检查指定的主机是否有效。 如果remote_host是主机名，尝试解析地址
+    
+/*
+    struct addrinfo *res = NULL;
     if (getaddrinfo(remote_host, portstr, &hints, &res) != 0) {
         errno = EFAULT;
         perror("getaddrinfo");
         return -1;
     }
-    
+
     if ((sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0) {
         perror("socket");
         return -1;
@@ -205,12 +207,11 @@ int create_connection6(char *remote_host, int remote_port)
         return -1;
     }
 
-
     if (res != NULL)
         freeaddrinfo(res);
+*/
 
 
-/*
     //通用sockaddr_storage结构体
     struct sockaddr_storage remote_addr;
     memset(&remote_addr, 0, sizeof(struct sockaddr_storage));
@@ -223,7 +224,9 @@ int create_connection6(char *remote_host, int remote_port)
             perror("socket");
             return -1;
         }
-    } else {
+    } 
+    else
+    {
         struct sockaddr_in6 *addr_v6 = (struct sockaddr_in6 *)&remote_addr;
         addr_v6->sin6_family = AF_INET6;
         addr_v6->sin6_port = htons(remote_port);
@@ -234,12 +237,13 @@ int create_connection6(char *remote_host, int remote_port)
         }
     }
 
-    if (connect(sock, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr_storage)) < 0) {
+    if (connect(sock, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr_storage)) < 0)
+    {
             perror("connect");
             return -1;
     }
-*/
-    
+
+
 /*
     //普通方法
     if (validfamily == AF_INET) {
@@ -280,6 +284,7 @@ int create_connection6(char *remote_host, int remote_port)
         return sock;
     }
 */
+
     return sock;
 }
 
@@ -287,6 +292,7 @@ int create_connection6(char *remote_host, int remote_port)
 static int8_t copy_data(conn_t * ct)
 {
     dataEncode(ct->incomplete_data, ct->incomplete_data_len, sslEncodeCode);
+
     if (ct->ready_data) {
         char *new_data;
 
@@ -301,7 +307,6 @@ static int8_t copy_data(conn_t * ct)
         ct->ready_data = ct->incomplete_data;
         ct->ready_data_len = ct->incomplete_data_len;
     }
-
     ct->incomplete_data = NULL;
     ct->incomplete_data_len = 0;
 
@@ -310,8 +315,8 @@ static int8_t copy_data(conn_t * ct)
 
 void tcp_in(conn_t * in, conf * configure)
 {
-    char *headerEnd;
     conn_t *server;
+    char *headerEnd;
 
     if (in->fd < 0)
         return;
@@ -329,44 +334,47 @@ void tcp_in(conn_t * in, conf * configure)
         close_connection(in);
         return;
     }
+
     server = in + 1;
     server->request_type = in->request_type = request_type(in->incomplete_data);
-    if (in->request_type == OTHER_TYPE)
-    {
+    if (in->request_type == OTHER_TYPE) {
         //如果是第一次读取数据，并且不是HTTP请求的，关闭连接。复制数据失败的也关闭连接
-        if (in->reread_data == 0 || copy_data(in) != 0)
-        {
+        if (in->reread_data == 0 || copy_data(in) != 0) {
             close_connection(in);
             return;
         }
         goto handle_data_complete;
     }
+
     headerEnd = strstr(in->incomplete_data, "\n\r");
     //请求头不完整，等待下次读取
     if (headerEnd == NULL)
         return;
-    if (in->request_type == HTTP_TYPE) {
+
+    if (in->reread_data == 0) {
+        in->reread_data = 1;
+
         in->incomplete_data = request_head(in, configure);
         server->fd = create_connection6(remote_host, remote_port);
 
-        if (server->fd < 0)
+        if (server->fd < 0) {
             printf("remote->fd ERROR!\n");
+            close_connection(in);
+            return;
+        }
         fcntl(server->fd, F_SETFL, O_NONBLOCK);
         ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
         ev.data.ptr = server;
         epoll_ctl(epollfd, EPOLL_CTL_ADD, server->fd, &ev);
-        
+
     }
-    if (in->reread_data == 0)
-    {
-        in->reread_data = 1;
-    }
+
     if (in->incomplete_data == NULL || copy_data(in) != 0) {
-        close_connection(in);
+        close_connection(server);
         return;
     }
     // 数据处理完毕，可以发送
-    handle_data_complete:
+handle_data_complete:
     // 这个判断是防止 多次读取客户端数据，但是没有和服务端建立连接，导致报错
     if (server->fd >= 0)
         tcp_out(server);
@@ -384,7 +392,7 @@ void tcp_out(conn_t * to)
     else
         from = to + 1;
     from->timer = to->timer = 0;
-    
+
     write_len = write(to->fd, from->ready_data + from->sent_len, from->ready_data_len - from->sent_len);
     if (write_len == from->ready_data_len - from->sent_len) {
         //服务端的数据可能没全部写入到客户端

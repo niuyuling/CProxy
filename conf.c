@@ -1,21 +1,6 @@
 #include "conf.h"
 #include "http_request.h"
 
-char *strncpy_(char *dest, const char *src, size_t n)
-{
-    int size = sizeof(char) * (n + 1);
-    char *tmp = (char *)malloc(size); // 开辟大小为n+1的临时内存tmp
-    if (tmp) {
-        memset(tmp, '\0', size); // 将内存初始化为0
-        memcpy(tmp, src, size - 1); // 将src的前n个字节拷贝到tmp
-        memcpy(dest, tmp, size); // 将临时空间tmp的内容拷贝到dest
-        free(tmp);              // 释放内存
-        return dest;
-    } else {
-        return NULL;
-    }
-}
-
 /* 字符串预处理，设置转义字符 */
 static void string_pretreatment(char *str, int *len)
 {
@@ -132,36 +117,21 @@ static void parse_global_module(char *content, conf * p)
     char *var, *val_begin, *val_end, *lineEnd;
 
     while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL) {
-        if (strcasecmp(var, "uid") == 0)
-        {
+        if (strcasecmp(var, "uid") == 0) {
             p->uid = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "process") == 0)
-        {
+        } else if (strcasecmp(var, "process") == 0) {
             p->process = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "timeout") == 0)
-        {
+        } else if (strcasecmp(var, "timeout") == 0) {
             p->timeout = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "encode") == 0)
-        {
+        } else if (strcasecmp(var, "encode") == 0) {
             p->sslencoding = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "tcp_listen") == 0)
-        {
+        } else if (strcasecmp(var, "tcp_listen") == 0) {
             p->tcp_listen = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "tcp6_listen") == 0)
-        {
+        } else if (strcasecmp(var, "tcp6_listen") == 0) {
             p->tcp6_listen = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "dns_listen") == 0)
-        {
+        } else if (strcasecmp(var, "dns_listen") == 0) {
             p->dns_listen = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "udp_listen") == 0)
-        {
+        } else if (strcasecmp(var, "udp_listen") == 0) {
             p->udp_listen = atoi(val_begin);;
         }
 
@@ -177,33 +147,26 @@ static void parse_http_module(char *content, conf * p)
     char *p2 = NULL;
 
     while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL) {
-        if (strcasecmp(var, "http_ip") == 0)
-        {
+        if (strcasecmp(var, "http_ip") == 0) {
             p->http_ip_len = val_end - val_begin;
             if (copy_new_mem(val_begin, p->http_ip_len, &p->http_ip) != 0)
-                return ;
-        }
-        else if (strcasecmp(var, "http_port") == 0)
-        {
+                return;
+        } else if (strcasecmp(var, "encode") == 0) {
+            p->http_encode = atoi(val_begin);
+        } else if (strcasecmp(var, "http_port") == 0) {
             p->http_port = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "http_del") == 0)
-        {
+        } else if (strcasecmp(var, "http_del") == 0) {
             p->http_del_len = val_end - val_begin;
             if (copy_new_mem(val_begin, p->http_del_len, &p->http_del) != 0)
-                return ;
-        }
-        else if (strcasecmp(var, "http_first") == 0)
-        {
+                return;
+        } else if (strcasecmp(var, "http_first") == 0) {
             p->http_first_len = val_end - val_begin;
             if (copy_new_mem(val_begin, p->http_first_len, &p->http_first) != 0)
-                return ;
-        }
-        else if (strcasecmp(var, "strrep") == 0)
-        {
-            http_node = (tcp *)malloc(sizeof(struct tcp));
+                return;
+        } else if (strcasecmp(var, "strrep") == 0) {
+            http_node = (tcp *) malloc(sizeof(struct tcp));
             if (http_node == NULL)
-                return ;
+                return;
             memset(http_node, 0, sizeof(struct tcp));
             http_node->strrep = strdup(val_begin);
             http_node->strrep_len = val_end - val_begin;
@@ -211,7 +174,7 @@ static void parse_http_module(char *content, conf * p)
             p1 = strstr(val_begin, "->");
             for (t = p1; *t != '"'; ++t) ;
             http_node->strrep_t = strdup(t + 1);
-            p2 = strchr(t+1, '\0');
+            p2 = strchr(t + 1, '\0');
             http_node->strrep_t_len = p2 - (t + 1);
 
             for (s = p1 - 1; *s == ' '; s--) {
@@ -223,34 +186,34 @@ static void parse_http_module(char *content, conf * p)
 
             http_node->strrep_s = strndup(val_begin, s - val_begin + 1);
             http_node->strrep_s_len = s - val_begin + 1;
-            
+
             http_node->next = NULL;
             if (http_head_strrep == NULL) {
                 http_head_strrep = http_node;
             } else {
                 http_node->next = http_head_strrep;
                 http_head_strrep = http_node;
-                
+
                 //http_node->next = http_head_strrep->next;
                 //http_head_strrep->next = http_node;
             }
         } else if (strcasecmp(var, "regrep") == 0) {
             http_node = (tcp *) malloc(sizeof(struct tcp));
             if (http_node == NULL)
-                return ;
+                return;
             memset(http_node, 0, sizeof(struct tcp));
             http_node->regrep = strdup(val_begin);
             http_node->regrep_len = val_end - val_begin;
-            
+
             p1 = strstr(val_begin, "->");
             for (t = p1; *t != '"'; ++t) ;
             http_node->regrep_t = strdup(t + 1);
-            p2 = strchr(t+1, '\0');
+            p2 = strchr(t + 1, '\0');
             http_node->regrep_t_len = p2 - (t + 1);
 
             for (s = p1 - 1; *s == ' '; s--) {
                 if (s == val_begin)
-                    return ;
+                    return;
             }
             if (*s == '"')
                 s--;
@@ -264,7 +227,7 @@ static void parse_http_module(char *content, conf * p)
             } else {
                 http_node->next = http_head_regrep;
                 http_head_regrep = http_node;
-                
+
                 //http_node->next = http_head_regrep->next;
                 //http_head_regrep->next = http_node;
             }
@@ -282,36 +245,29 @@ static void parse_https_module(char *content, conf * p)
     char *p2 = NULL;
 
     while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL) {
-        if (strcasecmp(var, "https_ip") == 0)
-        {
+        if (strcasecmp(var, "https_ip") == 0) {
             p->https_ip_len = val_end - val_begin;
             if (copy_new_mem(val_begin, p->https_ip_len, &p->https_ip) != 0)
-                return ;
-        }
-        else if (strcasecmp(var, "https_port") == 0)
-        {
+                return;
+        } else if (strcasecmp(var, "encode") == 0) {
+            p->https_encode = atoi(val_begin);
+        } else if (strcasecmp(var, "https_port") == 0) {
             p->https_port = atoi(val_begin);
-        }
-        else if (strcasecmp(var, "https_del") == 0)
-        {
+        } else if (strcasecmp(var, "https_del") == 0) {
             p->https_del_len = val_end - val_begin;
             if (copy_new_mem(val_begin, p->https_del_len, &p->https_del) != 0)
-                return ;
-        }
-        else if (strcasecmp(var, "https_first") == 0)
-        {
-            
+                return;
+        } else if (strcasecmp(var, "https_first") == 0) {
+
             p->https_first_len = val_end - val_begin;
             if (copy_new_mem(val_begin, p->https_first_len, &p->https_first) != 0)
-                return ;
-            
-        }
-        else if (strcasecmp(var, "strrep") == 0)
-        {
+                return;
+
+        } else if (strcasecmp(var, "strrep") == 0) {
             // 链表操作,支持多个相同配置KEY
-            https_node = (tcp *)malloc(sizeof(struct tcp));
+            https_node = (tcp *) malloc(sizeof(struct tcp));
             if (https_node == NULL)
-                return ;
+                return;
             memset(https_node, 0, sizeof(struct tcp));
             https_node->strrep = strdup(val_begin);
             https_node->strrep_len = val_end - val_begin;
@@ -319,7 +275,7 @@ static void parse_https_module(char *content, conf * p)
             p1 = strstr(val_begin, "->");
             for (t = p1; *t != '"'; ++t) ;
             https_node->strrep_t = strdup(t + 1);
-            p2 = strchr(t+1, '\0');
+            p2 = strchr(t + 1, '\0');
             https_node->strrep_t_len = p2 - (t + 1);
 
             for (s = p1 - 1; *s == ' '; s--) {
@@ -331,37 +287,35 @@ static void parse_https_module(char *content, conf * p)
 
             https_node->strrep_s = strndup(val_begin, s - val_begin + 1);
             https_node->strrep_s_len = s - val_begin + 1;
-            
+
             https_node->next = NULL;
-            
+
             if (https_head_strrep == NULL) {
                 https_head_strrep = https_node;
             } else {
                 https_node->next = https_head_strrep;
                 https_head_strrep = https_node;
-                
+
                 //https_node->next = https_head_strrep->next;
                 //https_head_strrep->next = https_node;
             }
-        } 
-        else if (strcasecmp(var, "regrep") == 0)
-        {
+        } else if (strcasecmp(var, "regrep") == 0) {
             https_node = (tcp *) malloc(sizeof(struct tcp));
             if (https_node == NULL)
-                return ;
+                return;
             memset(https_node, 0, sizeof(struct tcp));
             https_node->regrep = strdup(val_begin);
             https_node->regrep_len = val_end - val_begin;
-            
+
             p1 = strstr(val_begin, "->");
             for (t = p1; *t != '"'; ++t) ;
             https_node->regrep_t = strdup(t + 1);
-            p2 = strchr(t+1, '\0');
+            p2 = strchr(t + 1, '\0');
             https_node->regrep_t_len = p2 - (t + 1);
 
             for (s = p1 - 1; *s == ' '; s--) {
                 if (s == val_begin)
-                    return ;
+                    return;
             }
             if (*s == '"')
                 s--;
@@ -375,7 +329,7 @@ static void parse_https_module(char *content, conf * p)
             } else {
                 https_node->next = https_head_regrep;
                 https_head_regrep = https_node;
-                
+
                 //https_node->next = https_head_regrep->next;
                 //https_head_regrep->next = https_node;
             }
@@ -408,8 +362,7 @@ void print_tcp(tcp * p)
     }
 }
 
-
-tcp *local_reverse(tcp *head)
+tcp *local_reverse(tcp * head)
 {
     tcp *beg = NULL;
     tcp *end = NULL;
@@ -431,21 +384,20 @@ tcp *local_reverse(tcp *head)
 }
 
 // Free tcp 链表
-void free_tcp(tcp **conf_head)
+void free_tcp(tcp ** conf_head)
 {
     tcp *t;
-    while(*conf_head != NULL)
-    {
-        t=*conf_head;
-        *conf_head=t->next;
-        
+    while (*conf_head != NULL) {
+        t = *conf_head;
+        *conf_head = t->next;
+
         if (t->strrep)
             free(t->strrep);
         if (t->strrep_s)
             free(t->strrep_s);
         if (t->strrep_t)
             free(t->strrep_t);
-        
+
         if (t->regrep)
             free(t->regrep);
         if (t->regrep_s)
@@ -462,23 +414,18 @@ static void parse_httpdns_module(char *content, conf * p)
     char *var, *val_begin, *val_end, *lineEnd;
 
     while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL) {
-        if (strcasecmp(var, "addr") == 0)
-        {
-            p->addr_len = val_end - val_begin;
-            if (copy_new_mem(val_begin, p->addr_len, &p->addr) != 0)
-                return ;
-        }
-        else if (strcasecmp(var, "http_req") == 0)
-        {
-            p->http_req_len = val_end - val_begin;
-            if (copy_new_mem(val_begin, p->http_req_len, &p->http_req) != 0)
-                return ;
-        }
-        else if (strcasecmp(var, "encode") == 0)
-        {
+        if (strcasecmp(var, "addr") == 0) {
+            p->httpdns_addr_len = val_end - val_begin;
+            if (copy_new_mem(val_begin, p->httpdns_addr_len, &p->httpdns_addr) != 0)
+                return;
+        } else if (strcasecmp(var, "http_req") == 0) {
+            p->httpdns_http_req_len = val_end - val_begin;
+            if (copy_new_mem(val_begin, p->httpdns_http_req_len, &p->httpdns_http_req) != 0)
+                return;
+        } else if (strcasecmp(var, "encode") == 0) {
             p->encode = atoi(val_begin);
         }
-        
+
         content = strchr(lineEnd + 1, '\n');
     }
 }
@@ -488,23 +435,18 @@ static void parse_httpudp_module(char *content, conf * p)
     char *var, *val_begin, *val_end, *lineEnd;
 
     while ((lineEnd = set_var_val_lineEnd(content, &var, &val_begin, &val_end)) != NULL) {
-        if (strcasecmp(var, "addr") == 0)
-        {
+        if (strcasecmp(var, "addr") == 0) {
             p->httpudp_addr_len = val_end - val_begin;
             if (copy_new_mem(val_begin, p->httpudp_addr_len, &p->httpudp_addr) != 0)
-                return ;
-        }
-        else if (strcasecmp(var, "http_req") == 0)
-        {
+                return;
+        } else if (strcasecmp(var, "http_req") == 0) {
             p->httpudp_http_req_len = val_end - val_begin;
             if (copy_new_mem(val_begin, p->httpudp_http_req_len, &p->httpudp_http_req) != 0)
-                return ;
-        }
-        else if (strcasecmp(var, "encode") == 0)
-        {
+                return;
+        } else if (strcasecmp(var, "encode") == 0) {
             p->httpudp_encode = atoi(val_begin);
         }
-        
+
         content = strchr(lineEnd + 1, '\n');
     }
 }
@@ -528,21 +470,17 @@ void free_conf(conf * p)
         free(p->https_first);
 
     // httpdns module
-    if (p->addr)
-        free(p->addr);
-    if (p->http_req) {
-        p->http_req_len = 0;
-        free(p->http_req);
-    }
-    
+    if (p->httpdns_addr)
+        free(p->httpdns_addr);
+    if (p->httpdns_http_req)
+        free(p->httpdns_http_req);
+
     // httpudp module
-    if(p->httpudp_addr)
+    if (p->httpudp_addr)
         free(p->httpudp_addr);
-    if (p->httpudp_http_req) {
-        p->httpudp_http_req_len = 0;
+    if (p->httpudp_http_req)
         free(p->httpudp_http_req);
-    }
-    
+
     return;
 }
 
@@ -592,7 +530,7 @@ void read_conf(char *filename, conf * configure)
     else
         parse_httpdns_module(httpdns_content, configure);
     free(httpdns_content);
-    
+
     if ((httpudp_content = read_module(buff, "httpudp")) == NULL)
         perror("read httpdns module error");
     else

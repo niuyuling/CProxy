@@ -24,19 +24,21 @@ typedef struct CONF {
     int http_port;
     char *http_ip, *http_del, *http_first;
     int http_ip_len, http_del_len, http_first_len;
+    int http_encode;
 
     // https module
     int https_port;
     char *https_ip, *https_del, *https_first;
     int https_ip_len, https_del_len, https_first_len;
+    int https_encode;
 
     // httpdns module
-    char *addr;
-    char *http_req;
-    int addr_len;
-    int http_req_len;
+    char *httpdns_addr;
+    char *httpdns_http_req;
+    int httpdns_addr_len;
+    int httpdns_http_req_len;
     int encode;
-    
+
     // httpudp module
     char *httpudp_addr;
     char *httpudp_http_req;
@@ -67,13 +69,12 @@ extern tcp *https_head_strrep;
 extern tcp *https_head_regrep;
 extern tcp *https_node;
 
-extern void print_tcp(tcp *p);
-extern void free_tcp(tcp **p);
-extern tcp *local_reverse(tcp *head);
-
+extern void print_tcp(tcp * p);
+extern void free_tcp(tcp ** p);
+extern tcp *local_reverse(tcp * head);
 
 char *strncpy_(char *dest, const char *src, size_t n);
-void read_conf(char *file, conf *p);
-void free_conf(conf *p);
+void read_conf(char *file, conf * p);
+void free_conf(conf * p);
 
 #endif

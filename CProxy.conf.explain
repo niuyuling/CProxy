@@ -1,88 +1,90 @@
+
+//global模块
 global {
+    //进程UID
     uid=3004;
-    timeout=7;
-    encode=128;
+    
+    //超时时间(秒)
+    timeout=60;
+    
+    //TCP, DNS, UDP监听地址
     tcp_listen=0124;
     dns_listen=0126;
     udp_listen = 10010;
 }
 
+//http模块
 http {
-    http_ip="2001:19f0:4401:2f:5400:3ff:fec4:e376";
+    //http模块关键字: [M], [method], [uri], [U], [V], [version], [H], [host], [port], \r, \n, \v, \f, \b, \t, \a. 如果原本请求头含有关键字也会被替换.
+    //[M]、[method] 原请求方法
+    //[U] 原请求url
+    //[uri] 原请求uri(http 模块)
+    //[V]、[version] 原请求协议版本
+    //[host] 原请求host
+    //[port] 原请求端口
+    //[H] 原请求[host]:[port]
+    
+    
+    //指定HTTP服务器IP
+    http_ip="aixiao.me";
+    
+    //指定HTTP服务器端口
     http_port=129;
+    
+    //删除HTTP头字段,逗号分开
     http_del="Host,";
+    
+    //自定义HTTP请求头
     http_first="[M] [U] [V]\r\nHost: [H]\r\n";
+    
+    //字符串替换, 以"->"为分界符,"Windows NT 10.0"字符串替换为"Linux"字符串.(可以有多个)
     strrep="Windows NT 10.0" -> "Linux";
     strrep="Linux" -> "aixiao.me";
     strrep="aixiao.me" -> "AIXIAO.ME";
+    
+    //正则表达式替换, 以"->"为分界符,匹配到的内容"Accept-Encoding*.+?"替换为"Accept-Encoding: GZIP, deflate"字符串.(可以有多个)
     regrep="Accept-Encoding*.+?" -> "Accept-Encoding: GZIP, deflate";
     regrep="Connection*.+?" -> "Connection: KEEP-alive";
+    
+    // 编码, 代码128-255要与服务端一致，默认为0不编码
+    encode=129;
 }
 
+//https模块
 https {
-    https_ip="2001:19f0:4401:2f:5400:3ff:fec4:e376";
+    
+    https_ip="aixiao.me";
     https_port=129;
     https_del="Host,host,x-online-host";
-    https_first="[M] [U] [V]\r\nHost: [host]\r\n";
-    strrep="Windows NT 10.0" -> "Linux";
-    strrep="Linux" -> "aixiao.me";
-    strrep="aixiao.me" -> "AIXIAO.ME";
-    regrep="Host*.+?" -> "host: [host]:443";
-    regrep="host*.+?" -> "Host: [H]";
-    regrep="host*.+?" -> "Host: [host]";
+    https_first="[M] [U] [V]\r\nHost: [host]:[port]\r\n";
+    encode=129;
 }
 
+//httpdns模块
 httpdns {
+    //httpdns 模块关键字: [M], [D], [V], \r, \n, \v, \f, \b, \t, \a.
+    //默认 [M] 为 GET
+    //默认 [V] 为 HTTP/1.0
+    
+    
+    //HTTPDNS服务器IP
     addr = 119.29.29.29:80;
+    
+    //自定义HTTPDNS请求头
     http_req = "[M] [U] [V]\r\nHost: [H]\r\n\r\n";
 }
 
+//httpudp模块
 httpudp {
+    //httpudp 模块关键字: [M], [U], [V], [H].
+    //默认 [M] 为 CONNECT
+    //默认 [V] 为 HTTP/1.1
+
+
+    //HTTPUDP服务器IP
     addr = 47.240.75.93:10010;
+    
+    //自定义HTTPUDP请求头
     http_req = "[M] [U] [V]\r\nHost: [H]\r\n";
 }
-
-
-global模块
-uid=3004;           //进程UID
-process=2;          //进程数量(已经弃用)
-timeout=60;         //超时时间(秒)
-sslencoding=128;    //编码(非零生效)
-tcp_listen=0124;    //TCP监听端口
-tcp6_listen=0124;   //TCP6监听端口 (TCP和TCP6可以使用同一个端口, IPV4的数据走内部IPV4程序结构, IPV6数据走内部IPV6程序结构.)(已经弃用)
-dns_listen=0125;    //UDP监听端口
-
-
-http、https模块
-http、https 模块关键字: [M], [method], [uri], [U], [V], [version], [H], [host], [port], \r, \n, \v, \f, \b, \t, \a. 如果原本请求头含有关键字也会被替换.
-[M]、[method] 原请求方法
-[U] 原请求url
-[uri] 原请求uri(http 模块)
-[V]、[version] 原请求协议版本
-[host] 原请求host
-[port] 原请求端口
-[H] 原请求[host]:[port]
-
-http_ip=47.240.75.93;                               //指定HTTP服务器IP
-http_port=127;                                      //指定HTTP服务器端口
-http_del="x-online-host,X-Online-Host,host,Host";   //删除HTTP头字段,逗号分开
-http_first="[M] [U] [V]\r\nHost: [H]\r\n";          //自定义HTTP请求头
-关键字strrep替换字符串指令.
-strrep = "Mi MIX 2->Linux";                         //以"->"为分界符,"Mi MIX 2"字符串替换为"Linux"字符串.
-关键字regrep正则匹配替换字符串.
-regrep = "Host*.+?->Host: iread.wo.cn:443";         //以"->"为分界符,匹配到的内容"Host*.+?"替换为"Host: iread.wo.cn:443"字符串.
-
-httpdns模块
-httpdns 模块关键字: [M], [D], [V], \r, \n, \v, \f, \b, \t, \a.
-默认 [M] 为 GET
-默认 [V] 为 HTTP/1.0
-addr=119.29.29.29:80;                               //HTTPDNS服务器IP
-http_req = "[M] [U] [V]\r\nHost: [H]\r\n\r\n";      //自定义HTTPDNS请求头
-
-httpudp模块
-httpudp 模块关键字: [M], [U], [V], [H].
-默认 [M] 为 CONNECT
-默认 [V] 为 HTTP/1.1
-addr=47.240.75.93:10010;                            //HTTPUDP服务器IP
-http_req = "[M] [U] [V]\r\nHost: [H]\r\n\r\n";      //自定义HTTPUDP请求头
 

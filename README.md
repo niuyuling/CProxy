@@ -23,8 +23,8 @@
 
 ## Help Information
 
-    CProxy proxy server
-    Author: aixiao@aixiao.me
+    C Proxy Server
+    Author: AIXIAO@AIXIAO.ME
     Usage: [-?h] [-s signal] [-c filename]
 
     Options:

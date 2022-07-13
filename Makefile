@@ -5,7 +5,7 @@ CFLAGS += -g -O2 -Wall -pthread
 LIBS = 
 OBJ := CProxy
 
-all: main.o http_proxy.o http_request.o httpdns.o httpudp.o conf.o help.o
+all: main.o http_proxy.o http_request.o httpdns.o httpudp.o conf.o
 	$(CC) $(CFLAGS) -o $(OBJ) $^ $(LIBS)
 .c.o:
 	$(CC) $(CFLAGS) -c $<
